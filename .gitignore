@@ -161,3 +161,4 @@ cython_debug/
 
 # Result folder
 Keypoints/result/images
+Keypoints/data
