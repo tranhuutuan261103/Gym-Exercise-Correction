@@ -2,3 +2,4 @@
 %pip install numpy
 %pip install mediapipe
 %pip install pandas
+%pip install PyQt5
