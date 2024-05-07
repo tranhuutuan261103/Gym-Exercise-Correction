@@ -3,6 +3,8 @@ from tkinter import Toplevel, PhotoImage, filedialog
 from PIL import Image, ImageTk
 import cv2
 from services.Introductions import get_introductions
+from models.plank.PlankModel import PlankModel
+from models.squat.SquatModel import SquatModel
 
 class Home(tk.Frame):
     def __init__(self, parent, controller, camera):
@@ -16,6 +18,9 @@ class Home(tk.Frame):
         self.camera_image = None
         self.camera_image_from_device = None
         self.is_running = True  # Flag to control webcam updating
+
+        self.plank_model = PlankModel()
+        self.squat_model = SquatModel()
 
         # Initialize UI components here...
         # Title label
@@ -34,6 +39,7 @@ class Home(tk.Frame):
 
         # Activities buttons
         self.activities = ["Squat", "Lunge", "Plank", "Push up", "Bicep Curl"]
+        self.activitie_selected = "Squat"
         for activity in self.activities:
             loadimage = PhotoImage(file=f'./desktop_app/assets/home/activity/buttons/{activity.lower()}.png')
             btn = tk.Button(self.activities_frame, image=loadimage, bg="#DFDFDF", activebackground='#DFDFDF', bd=0, border=0, 
@@ -107,6 +113,14 @@ class Home(tk.Frame):
         btn.config(image=loadimage)
         btn.image = loadimage  # Prevent image from being garbage collected
 
+        self.activitie_selected = "Other"
+
+        if (activity_name == "Squat"):
+            self.activitie_selected = "Squat"
+
+        if (activity_name == "Plank"):
+            self.activitie_selected = "Plank"
+
     def update_Webcam(self):
         if not self.is_running or not self.camera_window or not self.camera_canvas:
             return
@@ -114,7 +128,16 @@ class Home(tk.Frame):
         ret, frame = self.video_capture.read()
         if ret:
             # get camera_window frame and resize it to fit the canvas
-            frame = cv2.resize(frame, self.current_camera_canvas)
+            # frame = self.plank_model.plank_detection(frame, size_original=self.current_camera_canvas)
+            switch = {
+                "Squat": self.squat_model.squat_detection,
+                "Plank": self.plank_model.plank_detection,
+            }
+
+            if self.activitie_selected == "Other":
+                frame = cv2.resize(frame, self.current_camera_canvas)
+            else:
+                frame = switch[self.activitie_selected](frame, size_original=self.current_camera_canvas)
             
             self.camera_image = ImageTk.PhotoImage(image=Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)))
             self.camera_canvas.create_image(0, 0, image=self.camera_image, anchor="nw")
