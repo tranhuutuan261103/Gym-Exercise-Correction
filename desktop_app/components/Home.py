@@ -131,7 +131,7 @@ class Home(tk.Frame):
             # frame = self.plank_model.plank_detection(frame, size_original=self.current_camera_canvas)
             switch = {
                 "Squat": self.squat_model.squat_detection,
-                "Plank": self.plank_model.plank_detection,
+                "Plank": self.plank_model.plank_detection_realtime,
             }
 
             if self.activitie_selected == "Other":

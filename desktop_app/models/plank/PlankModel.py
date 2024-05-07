@@ -6,15 +6,18 @@ import cv2
 import copy
 import warnings
 import pickle
-import os, sys
+import os
+import time as Time
+import threading
 
 class PlankModel:
     def __init__(self):
         warnings.filterwarnings('ignore')
+        self.last_time_skip = Time.time()
+        self.thredhold_time_skip = 0.25 # Số s được bỏ qua
         self.mp_drawing = mp.solutions.drawing_utils
         self.mp_pose = mp.solutions.pose
         current_dir = os.path.dirname(os.path.realpath(__file__))
-        print(current_dir)
         self.RF_model = self.load_model(f'{current_dir}\RF_model.pkl')
         self.input_scaler = self.load_model(f"{current_dir}\input_scaler.pkl")
         self.IMPORTANT_LMS = [
@@ -40,6 +43,10 @@ class PlankModel:
         for landmark in self.IMPORTANT_LMS:
             for dim in ['x', 'y', 'z']:
                 self.HEADERS.append(f"{landmark.lower()}_{dim}")
+
+        self.last_class = "Unknown"
+        self.last_error = "Unknown"
+        self.last_prediction_probability_max = 0
 
     def load_model(self, file_name):
         with open(file_name, "rb") as file:
@@ -238,3 +245,87 @@ class PlankModel:
                 print(f"Error: {e}")
 
         return image
+
+    def plank_detection_realtime(self, frame, size_original, prediction_probability_threshold=0.5):
+        time_skip_diff = Time.time() - self.last_time_skip
+        
+        # Bỏ qua frame nếu không phải frame được xử lý
+        if time_skip_diff > self.thredhold_time_skip:
+            self.last_time_skip = Time.time()
+            t1 = threading.Thread(target=self.task, name='t1', args=(frame, size_original, prediction_probability_threshold))
+            t1.start()
+
+        image = cv2.resize(frame, size_original, interpolation =cv2.INTER_AREA)
+
+        cv2.rectangle(image, (0, 0), (750, 60), (245, 117, 16), -1)
+        cv2.putText(image, "ERROR", (180, 12), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+
+        cv2.putText(image, self.last_error, (180, 40), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+
+        # Display class
+        cv2.putText(image, "CLASS", (95, 12), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(image, self.last_class, (110, 40), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+
+        # Display probability
+        cv2.putText(image, "PROB", (15, 12), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(image, str(round(self.last_prediction_probability_max, 2)), (10, 40), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+
+        return image
+    
+    def task(self, frame, size_original, prediction_probability_threshold=0.5):
+        current_class = "Unknown"
+
+        with self.mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
+            # resize frame để tăng tốc độ xử lý
+            image = self.rescale_frame(frame, percent=50)
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            results = pose.process(image)
+
+            if not results.pose_landmarks:
+                image = cv2.resize(image, size_original, interpolation =cv2.INTER_AREA)
+                # Cần khôi phục lại màu gốc của ảnh
+                image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+
+                cv2.rectangle(image, (0, 0), (750, 60), (245, 117, 16), -1)
+                cv2.putText(image, "ERROR", (180, 12), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+
+                cv2.putText(image, "No human found", (180, 40), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+
+                return image
+            
+            image.flags.writeable = True
+
+            # Cần khôi phục lại màu gốc của ảnh
+            image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+
+            # Get landmarks
+            try:
+                key_points = self.extract_and_recalculate_landmarks(results.pose_landmarks.landmark)
+                X = pd.DataFrame([key_points], columns=self.HEADERS[1:])
+                error = self.define_error(X, self.get_image_size(image))
+                X = self.input_scaler.transform(X)
+
+                predicted_class = self.RF_model.predict(X)[0]
+                predicted_class = self.get_class(self.RF_model.predict(X)[0])
+                prediction_probability_max = self.RF_model.predict_proba(X)[0].max()
+
+                self.last_prediction_probability_max = prediction_probability_max
+
+                if prediction_probability_max >= prediction_probability_threshold:
+                    current_class = predicted_class
+                else:
+                    current_class = "Unknown"
+
+                self.last_class = current_class
+
+                # set error
+                cv2.putText(image, "ERROR", (180, 12), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+                if (current_class == "Unknown"):
+                    self.last_error = "Unknown"
+                elif (current_class == "W"):
+                    self.last_error = error
+                else:
+                    self.last_error = "OK"
+
+            except Exception as e:
+                print(f"Error: {e}")
