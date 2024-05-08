@@ -12,7 +12,7 @@ def allowed_file(filename) -> bool:
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-@video_bp.route("upload/<string:exercise_type>", methods=["POST"])
+@video_bp.route("upload/<exercise_type>", methods=["POST"])
 def handle_uploaded_video(exercise_type):
     if "file" not in request.files:
         return jsonify({"error": "No file part"}), 400
@@ -26,5 +26,5 @@ def handle_uploaded_video(exercise_type):
     if not (file and allowed_file(file.filename)):
         return jsonify({"error": "File type not allowed"}), 400
 
-    response_info = video_model.handle_uploaded_video(file, user_id)
+    response_info = video_model.handle_uploaded_video(exercise_type, file, user_id)
     return response_info

@@ -1,6 +1,5 @@
-import cv2, os
+import cv2, os, threading
 from datetime import datetime
-import os
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 
@@ -36,3 +35,9 @@ def combine_frames_to_video(user_id, frames_info) -> str:
 
     video_writer.release()
     return output_path
+
+
+def create_thread_and_start(target, args):
+    thread = threading.Thread(target=target, args=args)
+    thread.start()
+    return thread

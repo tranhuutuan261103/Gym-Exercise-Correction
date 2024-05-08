@@ -1,6 +1,8 @@
 from firebase_admin import credentials, firestore, initialize_app, get_app, storage
 from firebase_admin.auth import create_custom_token
 import os
+import io
+import cv2
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -19,10 +21,13 @@ def initialize_firestore():
     return firestore.client()
 
 
-def upload_video_to_fire_storage(file_path):
-    file_name = os.path.basename(file_path)
+def upload_file_to_fire_storage(
+    file_path, file_name="", bucket_name="OfflineVideos"
+):
     bucket = storage.bucket()
-    blob_name = f"OfflineVideos/{file_name}"
+    if file_name == "":
+        file_name = os.path.basename(file_path)
+    blob_name = f"{bucket_name}/{file_name}"
     blob = bucket.blob(blob_name)
 
     # Tạo access token
@@ -32,4 +37,6 @@ def upload_video_to_fire_storage(file_path):
     blob.metadata = {"customMetadata": {"FirebaseStorageDownloadTokens": token}}
     blob.upload_from_filename(file_path)
     blob.make_public()
+
+    print(f"Done upload {file_name} to {bucket_name}.")
     return blob.public_url
