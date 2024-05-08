@@ -1,0 +1,1 @@
+{ "SVC": { "kernel": "rbf", "gamma": "auto", "C": 50 } }
