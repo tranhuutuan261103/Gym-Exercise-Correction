@@ -141,7 +141,7 @@ class History(tk.Frame):
                         photo = load_image_from_url(error_detail_images)
                         image_placeholder = tk.Label(error_detail_image_container, image=photo)
                         image_placeholder.photo = photo  # keep a reference!
-                        image_placeholder.grid(row=0, column=0, sticky="w", padx=5)
+                        image_placeholder.pack(side="left", padx=5)
                     except Exception as e:
                         print(f"An error occurred: {e}")
             
