@@ -46,7 +46,7 @@ class VideoModel:
             )
             handled_video_url = combine_frames_to_video(user_id, response_info)
 
-            create_thread_and_start(
+            thread_upload_video = create_thread_and_start(
                 target=self.process_video_and_upload,
                 args=(
                     record_id,
@@ -55,13 +55,16 @@ class VideoModel:
                 ),
             )
 
-            create_thread_and_start(
+            thread_upload_error_details = create_thread_and_start(
                 target=self.upload_error_details,
                 args=(record_id, response_info["error_details"]),
             )
 
+            thread_upload_video.join()
+            thread_upload_error_details.join()
+
             return (
-                jsonify({"message": "Upload successful"}),
+                jsonify({"message": "Upload successful", "record_id": record_id}),
                 200,
             )
         else:
@@ -119,11 +122,14 @@ class VideoModel:
                     cv2.imwrite(file_path, image["frame"])
 
                     urls.append(
-                        upload_file_to_fire_storage(
-                            file_path,
-                            file_name=f"{record_id}/{error_type}_{idx}.jpg",
-                            bucket_name="ErrorImages",
-                        )
+                        {
+                            "url": upload_file_to_fire_storage(
+                                file_path,
+                                file_name=f"{record_id}/{error_type}_{idx}.jpg",
+                                bucket_name="ErrorImages",
+                            ),
+                            "frame_in_seconds": image["frame_in_seconds"],
+                        }
                     )
                 except Exception as e:
                     print(e)
