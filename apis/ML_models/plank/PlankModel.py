@@ -167,23 +167,110 @@ class PlankModel:
         else:
             return ", ".join(error)
 
+    def draw_info_on_frame(
+        self, image, current_class, prediction_probability_max, error
+    ):
+        """
+        Draw information on the frame
+        """
+        cv2.rectangle(image, (0, 0), (750, 60), (245, 117, 16), -1)
+
+        # Hiển thị lỗi sai
+        cv2.putText(
+            image,
+            "ERROR",
+            (180, 12),
+            cv2.FONT_HERSHEY_COMPLEX,
+            0.5,
+            (0, 0, 0),
+            1,
+            cv2.LINE_AA,
+        )
+
+        error_detail = "Unknown"
+        if current_class == "W":
+            error_detail = error
+        elif current_class == "C":
+            error_detail = "None"
+
+        cv2.putText(
+            image,
+            error_detail,
+            (180, 40),
+            cv2.FONT_HERSHEY_COMPLEX,
+            1,
+            (255, 255, 255),
+            2,
+            cv2.LINE_AA,
+        )
+
+        # Hiển thị trạng thái đúng/sai
+        cv2.putText(
+            image,
+            "CLASS",
+            (95, 12),
+            cv2.FONT_HERSHEY_COMPLEX,
+            0.5,
+            (0, 0, 0),
+            1,
+            cv2.LINE_AA,
+        )
+        cv2.putText(
+            image,
+            current_class,
+            (110, 40),
+            cv2.FONT_HERSHEY_COMPLEX,
+            1,
+            (255, 255, 255),
+            2,
+            cv2.LINE_AA,
+        )
+
+        # Hiển thị độ chính xác
+        cv2.putText(
+            image,
+            "PROB",
+            (15, 12),
+            cv2.FONT_HERSHEY_COMPLEX,
+            0.5,
+            (0, 0, 0),
+            1,
+            cv2.LINE_AA,
+        )
+        cv2.putText(
+            image,
+            str(round(prediction_probability_max, 2)),
+            (10, 40),
+            cv2.FONT_HERSHEY_COMPLEX,
+            1,
+            (255, 255, 255),
+            2,
+            cv2.LINE_AA,
+        )
+
     def plank_detection_offline(self, video_path, prediction_probability_threshold=0.5):
         cap = cv2.VideoCapture(video_path if video_path else 0)
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        print("FPS: ", fps)
+
         current_class = "Unknown"
 
         # Số frame được bỏ qua
         image_width, image_height = 0, 0
-        frame_skip = 2
+        frame_skip = 5
         frame_count = 0
+
         result_frames = []
+        error_details = {}
+
+        # Đặt thời gian bắt đầu của video để lát tính thời gian tại thời điểm của từng frame
+        previous_error = {"name": "Unknown", "time": 0}
 
         with self.mp_pose.Pose(
             min_detection_confidence=0.5, min_tracking_confidence=0.5
         ) as pose:
             while cap.isOpened():
-                print("Running ...")
                 ret, image = cap.read()
-
                 if not ret:
                     print("Ignoring empty camera frame.")
                     break
@@ -193,6 +280,8 @@ class PlankModel:
                 # Bỏ qua frame nếu không phải frame được xử lý
                 if frame_count % frame_skip != 0:
                     continue
+
+                print("Running, process in seconds: ", frame_count / fps)
 
                 # resize frame để tăng tốc độ xử lý
                 image = self.rescale_frame(image, percent=30)
@@ -223,11 +312,12 @@ class PlankModel:
                     predicted_class = self.RF_model.predict(X)[0]
                     predicted_class = self.get_class(self.RF_model.predict(X)[0])
                     prediction_probability_max = self.RF_model.predict_proba(X)[0].max()
-
-                    if prediction_probability_max >= prediction_probability_threshold:
-                        current_class = predicted_class
-                    else:
-                        current_class = "Unknown"
+                    current_class = (
+                        predicted_class
+                        if prediction_probability_max
+                        >= prediction_probability_threshold
+                        else "Unknown"
+                    )
 
                     colors = self.get_color_for_landmarks(current_class)
                     self.mp_drawing.draw_landmarks(
@@ -242,115 +332,40 @@ class PlankModel:
                         ),
                     )
 
-                    cv2.rectangle(image, (0, 0), (750, 60), (245, 117, 16), -1)
-
-                    # Display error
-                    cv2.putText(
-                        image,
-                        "ERROR",
-                        (180, 12),
-                        cv2.FONT_HERSHEY_COMPLEX,
-                        0.5,
-                        (0, 0, 0),
-                        1,
-                        cv2.LINE_AA,
-                    )
-                    if current_class == "Unknown":
-                        cv2.putText(
-                            image,
-                            "Unknown",
-                            (180, 40),
-                            cv2.FONT_HERSHEY_COMPLEX,
-                            1,
-                            (255, 255, 255),
-                            2,
-                            cv2.LINE_AA,
-                        )
-                    elif current_class == "W":
-                        cv2.putText(
-                            image,
-                            error,
-                            (180, 40),
-                            cv2.FONT_HERSHEY_COMPLEX,
-                            1,
-                            (255, 255, 255),
-                            2,
-                            cv2.LINE_AA,
-                        )
-                    else:
-                        cv2.putText(
-                            image,
-                            "None",
-                            (180, 40),
-                            cv2.FONT_HERSHEY_COMPLEX,
-                            1,
-                            (255, 255, 255),
-                            2,
-                            cv2.LINE_AA,
-                        )
-
-                    # Display class
-                    cv2.putText(
-                        image,
-                        "CLASS",
-                        (95, 12),
-                        cv2.FONT_HERSHEY_COMPLEX,
-                        0.5,
-                        (0, 0, 0),
-                        1,
-                        cv2.LINE_AA,
-                    )
-                    cv2.putText(
-                        image,
-                        current_class,
-                        (110, 40),
-                        cv2.FONT_HERSHEY_COMPLEX,
-                        1,
-                        (255, 255, 255),
-                        2,
-                        cv2.LINE_AA,
-                    )
-
-                    # Display probability
-                    cv2.putText(
-                        image,
-                        "PROB",
-                        (15, 12),
-                        cv2.FONT_HERSHEY_COMPLEX,
-                        0.5,
-                        (0, 0, 0),
-                        1,
-                        cv2.LINE_AA,
-                    )
-                    cv2.putText(
-                        image,
-                        str(round(prediction_probability_max, 2)),
-                        (10, 40),
-                        cv2.FONT_HERSHEY_COMPLEX,
-                        1,
-                        (255, 255, 255),
-                        2,
-                        cv2.LINE_AA,
+                    self.draw_info_on_frame(
+                        image, current_class, prediction_probability_max, error
                     )
 
                     # Lưu frame vào để phục vụ cho việc xuất video
                     result_frames.append(image)
+                    current_time = frame_count / fps
+                    if current_class == "W" and (
+                        error != previous_error["name"]
+                        or current_time - previous_error["time"] >= 1.5
+                    ):
+                        if error == "Unknown":
+                            continue
+
+                        error_details.setdefault(error, []).append(
+                            {
+                                "frame": image,
+                                "frame_in_seconds": current_time,
+                            }
+                        )
+                        previous_error = {"name": error, "time": current_time}
 
                 except Exception as e:
                     print(f"Error: {e}")
-
-                cv2.imshow("CV2", image)
-
-                # Nhấn q để thoát
-                if cv2.waitKey(1) & 0xFF == ord("q"):
-                    break
-
             cap.release()
-            cv2.destroyAllWindows()
 
         response_info = {
+            "frame_skip": frame_skip,
+            "fps": fps,
             "frames": result_frames,
             "image_width": image_width,
             "image_height": image_height,
+            "error_details": error_details,
         }
+        print("Done detection")
+
         return response_info
