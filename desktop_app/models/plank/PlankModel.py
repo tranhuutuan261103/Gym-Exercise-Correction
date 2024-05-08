@@ -9,6 +9,8 @@ import pickle
 import os
 import time as Time
 import threading
+from services.Histories import create_history, save_error
+import datetime
 
 class PlankModel:
     def __init__(self):
@@ -47,6 +49,7 @@ class PlankModel:
         self.last_class = "Unknown"
         self.last_error = "Unknown"
         self.last_prediction_probability_max = 0
+        self.history_id = None
 
     def load_model(self, file_name):
         with open(file_name, "rb") as file:
@@ -298,6 +301,8 @@ class PlankModel:
             # Cần khôi phục lại màu gốc của ảnh
             image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
+            cv2.rectangle(image, (0, 0), (750, 60), (245, 117, 16), -1)
+
             # Get landmarks
             try:
                 key_points = self.extract_and_recalculate_landmarks(results.pose_landmarks.landmark)
@@ -318,14 +323,38 @@ class PlankModel:
 
                 self.last_class = current_class
 
+                # Display class
+                cv2.putText(image, "CLASS", (95, 12), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+                cv2.putText(image, current_class, (110, 40), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+
+                # Display probability
+                cv2.putText(image, "PROB", (15, 12), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+                cv2.putText(image, str(round(prediction_probability_max, 2)), (10, 40), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+
                 # set error
                 cv2.putText(image, "ERROR", (180, 12), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
                 if (current_class == "Unknown"):
+                    cv2.putText(image, "Unknown", (180, 40), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
                     self.last_error = "Unknown"
                 elif (current_class == "W"):
                     self.last_error = error
+                    cv2.putText(image, error, (180, 40), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+                    self.save_error(error, image)
                 else:
                     self.last_error = "OK"
+                    cv2.putText(image, "OK", (180, 40), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
 
             except Exception as e:
                 print(f"Error: {e}")
+    def save_error(self, error, image_frame):
+        if self.history_id is not None:
+            save_error({
+                "ErrorType": error,
+            }, cv2.imencode('.png', image_frame)[1].tostring(), self.history_id)
+
+    def init_history(self):
+        self.history_id = create_history({
+            "ExcerciseName": "Plank",
+            "Datetime": datetime.datetime.now(),
+            "UserID": "54U9rc8mD9Nbm4dpRAUNNm7ZYGw2"
+        })

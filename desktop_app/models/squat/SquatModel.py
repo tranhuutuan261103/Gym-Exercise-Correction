@@ -3,6 +3,9 @@ from cvzone.PoseModule import PoseDetector
 from models.squat.angleFinder import angleFinder
 import numpy as np
 import time
+import sys
+sys.path.append('./desktop_app')
+from services.Histories import create_history
 
 class SquatModel:
     def __init__(self):
@@ -133,3 +136,6 @@ class SquatModel:
             cv2.rectangle(img, (8, int(rightval)), (50, 400), (0, 0, 255), -1)
 
         return img
+    
+    def init_history(self):
+        print(create_history("Squat"))

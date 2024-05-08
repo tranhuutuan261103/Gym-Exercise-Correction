@@ -3,8 +3,10 @@ from tkinter import Toplevel, PhotoImage, filedialog
 from PIL import Image, ImageTk
 import cv2
 from services.Introductions import get_introductions
+from services.Histories import send_push_notification
 from models.plank.PlankModel import PlankModel
 from models.squat.SquatModel import SquatModel
+
 
 class Home(tk.Frame):
     def __init__(self, parent, controller, camera):
@@ -18,6 +20,7 @@ class Home(tk.Frame):
         self.camera_image = None
         self.camera_image_from_device = None
         self.is_running = True  # Flag to control webcam updating
+        self.is_running_from_device = False  # Flag to control video updating
 
         self.plank_model = PlankModel()
         self.squat_model = SquatModel()
@@ -90,7 +93,9 @@ class Home(tk.Frame):
     def switch_activity(self, activity_name):
         index = 1
         for introduction in self.introductions:
-            if introduction["Name"] == activity_name:
+            if introduction["Name"].lower() == "lunges":
+                introduction["Name"] = "Lunge"
+            if introduction["Name"].lower() == activity_name.lower():
                 self.label_introduction.config(text=introduction["Instruction"])
                 break
             index += 1
@@ -123,6 +128,7 @@ class Home(tk.Frame):
 
     def update_Webcam(self):
         if not self.is_running or not self.camera_window or not self.camera_canvas:
+            self.is_running_from_device = False
             return
 
         ret, frame = self.video_capture.read()
@@ -130,14 +136,17 @@ class Home(tk.Frame):
             # get camera_window frame and resize it to fit the canvas
             # frame = self.plank_model.plank_detection(frame, size_original=self.current_camera_canvas)
             switch = {
-                "Squat": self.squat_model.squat_detection,
-                "Plank": self.plank_model.plank_detection_realtime,
+                "Squat": [self.squat_model.squat_detection, self.squat_model.init_history],
+                "Plank": [self.plank_model.plank_detection_realtime, self.plank_model.init_history],
             }
 
             if self.activitie_selected == "Other":
                 frame = cv2.resize(frame, self.current_camera_canvas)
             else:
-                frame = switch[self.activitie_selected](frame, size_original=self.current_camera_canvas)
+                if self.is_running_from_device == False:
+                    # switch[self.activitie_selected][1]()
+                    self.is_running_from_device = True
+                frame = switch[self.activitie_selected][0](frame, size_original=self.current_camera_canvas)
             
             self.camera_image = ImageTk.PhotoImage(image=Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)))
             self.camera_canvas.create_image(0, 0, image=self.camera_image, anchor="nw")
@@ -163,6 +172,8 @@ class Home(tk.Frame):
 
     def stop_canvas(self):
         self.is_running = False  # Pause updating the webcam view
+        # Sử dụng hàm send_push_notification để gửi thông điệp đến thiết bị có token tương ứng
+        send_push_notification("Finish the exercise", "You have finished the exercise, please check the result")
 
     def start_canvas(self):
         if self.video_capture is None or not self.video_capture.isOpened():
