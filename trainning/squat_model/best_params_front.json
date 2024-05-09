@@ -1,6 +1,6 @@
 {
     "LR": { "solver": "saga", "penalty": "l1", "C": 0.615848211066026 },
-    "SVC": { "kernel": "linear", "gamma": 0.1, "C": 100 },
+    "SVC": { "kernel": "rbf", "gamma": 0.01, "C": 50 },
     "KNN": { "weights": "distance", "n_neighbors": 7, "metric": "manhattan" },
     "DTC": { "min_samples_split": 5, "min_samples_leaf": 10, "max_depth": 10 },
     "RF": {
