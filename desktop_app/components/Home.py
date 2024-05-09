@@ -136,7 +136,7 @@ class Home(tk.Frame):
             # get camera_window frame and resize it to fit the canvas
             # frame = self.plank_model.plank_detection(frame, size_original=self.current_camera_canvas)
             switch = {
-                "Squat": [self.squat_model.squat_detection, self.squat_model.init_history],
+                "Squat": [self.squat_model.squat_detection_realtime, self.squat_model.init_history],
                 "Plank": [self.plank_model.plank_detection_realtime, self.plank_model.init_history],
             }
 
@@ -173,7 +173,7 @@ class Home(tk.Frame):
     def stop_canvas(self):
         self.is_running = False  # Pause updating the webcam view
         # Sử dụng hàm send_push_notification để gửi thông điệp đến thiết bị có token tương ứng
-        send_push_notification("Finish the exercise", "You have finished the exercise, please check the result")
+        # send_push_notification("Finish the exercise", "You have finished the exercise, please check the result")
 
     def start_canvas(self):
         if self.video_capture is None or not self.video_capture.isOpened():

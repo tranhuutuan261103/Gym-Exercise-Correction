@@ -57,14 +57,6 @@ class angleFinder:
                 leftkneeAngleLineAngle = abs(vertical_line_angle - p2_p3_angle)
                 rightkneeAngleLineAngle = abs(vertical_line_angle - p5_p6_angle)
 
-                print (f"leftHandAngle: {leftHandAngle}")
-                print (f"rightHandAngle: {rightHandAngle}")
-                print (f"leftBackAngle: {leftBackAngle}")
-                print (f"rightBackAngle: {rightBackAngle}")
-                print (f"leftkneeAngleLineAngle: {leftkneeAngleLineAngle}")
-                print (f"rightkneeAngleLineAngle: {rightkneeAngleLineAngle}")
-                
-
                 leftHandAngle = int(np.interp(leftHandAngle, [0, 95], [0, 100])) # Ánh xạ sang từ 0-95 về 0-100 vì góc càng nhỏ thì càng tiến về trạng thái s3
                 rightHandAngle = int(np.interp(rightHandAngle, [0, 95], [0, 100])) # Ánh xạ sang từ 0-95 về 0-100 vì góc càng nhỏ thì càng tiến về trạng thái s3
                 leftBackAngle = int(np.interp(leftBackAngle, [0, 95], [0, 100])) # Ánh xạ sang từ 0-95 về 0-100 vì góc càng nhỏ thì càng tiến về trạng thái s3
