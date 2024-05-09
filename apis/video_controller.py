@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 from video_model import VideoModel
+from utils import create_thread_and_start
 
 video_bp = Blueprint("video", __name__, url_prefix="/api/video")
 
@@ -50,5 +51,20 @@ def handle_uploaded_video(exercise_type):
     if not (file and allowed_file(file.filename)):
         return jsonify({"error": "File type not allowed"}), 400
 
-    response_info = video_model.handle_uploaded_video(user_id, exercise_type, file)
-    return response_info
+    if exercise_type not in video_model.available_models:
+        return jsonify({"error": "Exercise type not found"}), 400
+
+    record_id = video_model.init_empty_handle_video_record(user_id, exercise_type)
+    
+    # Lưu tạm file video xuống server để thread xử lí ngầm sau đó
+    uploaded_video_url = video_model.save_file_temporarily(file, user_id)
+
+    create_thread_and_start(
+        video_model.handle_uploaded_video,
+        args=(record_id, user_id, exercise_type, uploaded_video_url),
+    )
+
+    return (
+        jsonify({"record_id": record_id}),
+        200,
+    )
