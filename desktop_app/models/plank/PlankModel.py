@@ -138,9 +138,9 @@ class PlankModel:
                             (key_points.right_ankle_x[0], key_points.right_ankle_y[0]), 
                             image_size)
         else:
-            angle = self.calculate_angle((key_points.left_shoulder_x[0], key_points.left_shoulder_y[0]), 
+            angle = self.calculate_angle((key_points.left_ankle_x[0], key_points.left_ankle_y[0]), 
                             (key_points.left_hip_x[0], key_points.left_hip_y[0]), 
-                            (key_points.left_ankle_x[0], key_points.left_ankle_y[0]), 
+                            (key_points.left_shoulder_x[0], key_points.left_shoulder_y[0]), 
                             image_size)
 
         if angle < 170:
@@ -155,9 +155,9 @@ class PlankModel:
                                 (key_points.right_wrist_x[0], key_points.right_wrist_y[0]),
                                 image_size)
         else:
-            angle = self.calculate_angle((key_points.left_shoulder_x[0], key_points.left_shoulder_y[0]),
+            angle = self.calculate_angle((key_points.left_wrist_x[0], key_points.left_wrist_y[0]),
                                 (key_points.left_elbow_x[0], key_points.left_elbow_y[0]),
-                                (key_points.left_wrist_x[0], key_points.left_wrist_y[0]),
+                                (key_points.left_shoulder_x[0], key_points.left_shoulder_y[0]),
                                 image_size)
         
         if angle < 75:
