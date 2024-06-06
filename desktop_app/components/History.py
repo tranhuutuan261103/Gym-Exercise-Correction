@@ -7,13 +7,16 @@ import requests
 from io import BytesIO
 from datetime import datetime
 from services.Histories import get_histories
+import threading
+from tkinter.ttk import * 
 
 class History(tk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         self.controller = controller
 
-        self.curent_selected_history = None
+        self.current_selected_history = None
+        self.current_selected_frame_history = None
 
         # Title label
         self.label_title = tk.Label(self, text="History                                                              ", font=("Arial", 46, "bold"), fg="#3C2937")
@@ -28,6 +31,7 @@ class History(tk.Frame):
         # Create the history list frame and tab control
         self.create_history_list()
         self.create_tabs()
+        self.create_styles()
 
         # Make the History frame fill the entire space of the parent container
         self.pack(fill='both', expand=True)
@@ -44,22 +48,34 @@ class History(tk.Frame):
 
         # Add history entries to the frame
         for history in self.histories:
-            history_frame = ttk.Frame(self.frame_history, relief='solid', borderwidth=1)
-            history_frame.pack(fill='both', pady=10, padx=10)
+            self.frame_history_item = ttk.Frame(self.frame_history, relief='solid', borderwidth=1)
+            self.frame_history_item.pack(fill='both', pady=10, padx=10)
 
             # Bind the click event to a method
-            history_frame.bind("<Button-1>", lambda event, h=history: self.on_history_click(h))
+            self.frame_history_item.bind("<Button-1>", lambda event, h=history, history_frame=self.frame_history_item: self.on_history_click(h, history_frame))
 
-            title = ttk.Label(history_frame, text=history["ExcerciseName"], font=("Arial", 16, "bold"))
+            title = ttk.Label(self.frame_history_item, text=history["ExcerciseName"], font=("Arial", 16, "bold"))
             title.pack(anchor='w')
+            title.bind("<Button-1>", lambda event, h=history, history_frame=self.frame_history_item: self.on_history_click(h, history_frame))  # Bind click to the label
 
-            date = ttk.Label(history_frame, text=history["Datetime"], font=("Arial", 12))
+            date = ttk.Label(self.frame_history_item, text=history["Datetime"], font=("Arial", 12))
             date.pack(anchor='w')
+            date.bind("<Button-1>", lambda event, h=history, history_frame=self.frame_history_item: self.on_history_click(h, history_frame))  # Bind click to the label
 
-    def on_history_click(self, history):
+    def create_styles(self):
+        self.s = Style()
+        self.s.configure('My.TFrameA', background='#0000ff')
+        self.s.configure('My.TFrame', background='#f0f0f0')
+
+    def on_history_click(self, history, history_frame):
         # This method will be called with the history item data
         # You can then update the error details frame with this data
-        self.curent_selected_history = history
+        self.current_selected_history = history
+        self.current_selected_frame_history = history_frame
+        
+        for frame in self.frame_history.winfo_children():
+            frame.config(style='My.TFrame')
+        history_frame.config(style='My.TFrameA')
         self.update_error_sumary_tab()
         self.update_error_detail_tab()
 
@@ -98,7 +114,7 @@ class History(tk.Frame):
         label = ttk.Label(self.frame_summary, text=f"There are {error_detail['ErrorTotalCount']} errors found.", foreground="red", justify='left')
         label.pack(pady=10)
 
-        if self.curent_selected_history:
+        if self.current_selected_history:
             for error in error_detail['SpecificErrorFrames']:
                 error_label = ttk.Label(self.frame_summary, text=f"{error['ErrorType']}: {error['Count']}")
                 error_label.pack(anchor='w', padx=10, pady=5)
@@ -120,11 +136,11 @@ class History(tk.Frame):
         label = ttk.Label(self.detail_frame, text=f"There are {error_detail['ErrorTotalCount']} errors found.", foreground="red")
         label.pack(pady=10)
 
-        if self.curent_selected_history:
+        if self.current_selected_history:
             for error in error_detail['SpecificErrorFrames']:
                 # Each error gets its own frame within the detail frame
                 error_report_frame = ttk.Frame(self.detail_frame, relief='solid', borderwidth=1)
-                error_report_frame.pack(fill='x',  pady=5, padx=10)
+                error_report_frame.pack(fill='x', pady=5, padx=10)
 
                 # Labels for timestamp, score, and description
                 timestamp_label = ttk.Label(error_report_frame, text=f'{error["ErrorType"]}: ', font=("Arial", 12))
@@ -136,22 +152,44 @@ class History(tk.Frame):
                 error_detail_image_container = ttk.Frame(error_report_frame)
                 error_detail_image_container.grid(row=1, column=0, columnspan=2, sticky="w", padx=5)
 
-                for error_detail_images in error['ImageUrl']:
-                    try:
-                        photo = load_image_from_url(error_detail_images)
-                        image_placeholder = tk.Label(error_detail_image_container, image=photo)
-                        image_placeholder.photo = photo  # keep a reference!
-                        image_placeholder.pack(side="left", padx=5)
-                    except Exception as e:
-                        print(f"An error occurred: {e}")
+                for i in range(len(error['ImageUrl']) // 3 + 1):
+                    error_detail_image_container_row = ttk.Frame(error_detail_image_container)
+                    for j in range(3):
+                        if i * 3 + j >= len(error['ImageUrl']):
+                            break
+                        error_detail_images = error['ImageUrl'][i * 3 + j]
+                        
+                        def callback(photo, container=error_detail_image_container_row):
+                            if photo:
+                                image_placeholder = tk.Label(container, image=photo)
+                                image_placeholder.photo = photo  # keep a reference!
+                                image_placeholder.pack(side="left", padx=5)
+                        
+                        load_image_from_url(error_detail_images, callback)
+                    
+                    error_detail_image_container_row.pack(side="top", padx=5)
             
 
     def get_error_details_for_current_history(self):
-        return self.curent_selected_history
+        return self.current_selected_history
     
-def load_image_from_url(url):
-    response = requests.get(url)
-    image_data = BytesIO(response.content)
-    image = Image.open(image_data)
-    image = image.resize((200, 120))
-    return ImageTk.PhotoImage(image)
+def load_image_from_url(url, callback):
+    def task():
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            image_data = BytesIO(response.content)
+            image = Image.open(image_data)
+            image = image.resize((200, 120))
+            photo = ImageTk.PhotoImage(image)
+            callback(photo)
+        except requests.exceptions.RequestException as e:
+            # print(f"HTTP Request error: {e}")
+            pass
+        except Exception as e:
+            # print(f"An error occurred while loading image: {e}")
+            pass
+        callback(None)
+
+    thread = threading.Thread(target=task)
+    thread.start()
