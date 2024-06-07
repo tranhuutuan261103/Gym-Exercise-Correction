@@ -6,3 +6,4 @@
 %pip install python-dotenv
 %pip install flask
 %pip install Flask-CORS
+%pip install soundfile
