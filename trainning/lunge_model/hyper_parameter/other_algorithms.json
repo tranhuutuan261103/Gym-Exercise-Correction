@@ -1,0 +1,1 @@
+{"LR": {"solver": "lbfgs", "penalty": "l2", "class_weight": "balanced", "C": 29.763514416313132}, "KNN": {"weights": "uniform", "n_neighbors": 3, "metric": "euclidean"}, "DTC": {"min_samples_split": 2, "min_samples_leaf": 1, "max_depth": 15, "class_weight": "balanced"}}
