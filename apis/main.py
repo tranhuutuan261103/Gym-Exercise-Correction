@@ -9,4 +9,4 @@ app.register_blueprint(video_bp)
 
 if __name__ == "__main__":
     save_server_ip()
-    app.run(debug=True, port=9999)
+    app.run(debug=True,host='0.0.0.0', port=9999)
