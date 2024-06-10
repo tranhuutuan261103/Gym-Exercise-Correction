@@ -1,0 +1,1 @@
+{"LR": {"solver": "newton-cg", "penalty": "l2", "class_weight": "balanced", "C": 4.281332398719396}, "KNN": {"weights": "distance", "n_neighbors": 8, "metric": "manhattan"}, "DTC": {"min_samples_split": 20, "min_samples_leaf": 1, "max_depth": 10, "class_weight": "balanced"}}
