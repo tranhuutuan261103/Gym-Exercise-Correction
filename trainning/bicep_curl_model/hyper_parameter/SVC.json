@@ -1,1 +1,5 @@
-{"C": 1, "gamma": 0.001, "kernel": "linear"}
+{
+    "C": 1,
+    "gamma": 0.001,
+    "kernel": "linear"
+}
