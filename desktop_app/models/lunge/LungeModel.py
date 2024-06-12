@@ -277,6 +277,7 @@ class LungeModel:
                         self.counter += 1
                     current_stage = predicted_stage
                     self.last_state = current_stage
+                    self.last_errors = errors
                     self.last_prediction_probability_max = prediction_probability_max
             except Exception as e:
                 self.last_state = "Unknown"
@@ -293,7 +294,7 @@ class LungeModel:
 
     def init_history(self):
         self.history_id = create_history({
-            "ExcerciseName": "Plank",
+            "ExcerciseName": "Lunge",
             "Datetime": datetime.datetime.now(),
             "UserID": "54U9rc8mD9Nbm4dpRAUNNm7ZYGw2"
         })

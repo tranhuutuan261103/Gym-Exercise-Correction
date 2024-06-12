@@ -7,7 +7,7 @@ from services.Histories import send_push_notification
 from models.plank.PlankModel import PlankModel
 from models.squat.SquatModel import SquatModel
 from models.lunge.LungeModel import LungeModel
-
+from models.bicep_curl.BicepCurlModel import BicepCurlModel
 
 class Home(tk.Frame):
     def __init__(self, parent, controller, camera):
@@ -26,6 +26,7 @@ class Home(tk.Frame):
         self.plank_model = PlankModel()
         self.squat_model = SquatModel()
         self.lunge_model = LungeModel()
+        self.bicep_curl_model = BicepCurlModel()
 
         # Initialize UI components here...
         # Title label
@@ -131,6 +132,9 @@ class Home(tk.Frame):
         if (activity_name == "Lunge"):
             self.activitie_selected = "Lunge"
 
+        if (activity_name == "Bicep Curl"):
+            self.activitie_selected = "Bicep Curl"
+
     def update_Webcam(self):
         if not self.is_running or not self.camera_window or not self.camera_canvas:
             self.is_running_from_device = False
@@ -143,7 +147,8 @@ class Home(tk.Frame):
             switch = {
                 "Squat": [self.squat_model.squat_detection_realtime, self.squat_model.init_history],
                 "Plank": [self.plank_model.plank_detection_realtime, self.plank_model.init_history],
-                "Lunge": [self.lunge_model.lunge_detection_realtime, self.lunge_model.init_history]
+                "Lunge": [self.lunge_model.lunge_detection_realtime, self.lunge_model.init_history],
+                "Bicep Curl": [self.bicep_curl_model.bicep_curl_detection_realtime, self.bicep_curl_model.init_history],
             }
 
             if self.activitie_selected == "Other":
