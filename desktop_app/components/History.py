@@ -73,9 +73,9 @@ class History(tk.Frame):
         self.current_selected_history = history
         self.current_selected_frame_history = history_frame
         
-        for frame in self.frame_history.winfo_children():
-            frame.config(style='My.TFrame')
-        history_frame.config(style='My.TFrameA')
+        # for frame in self.frame_history.winfo_children():
+        #     frame.config(style='My.TFrame')
+        # history_frame.config(style='My.TFrameA')
         self.update_error_sumary_tab()
         self.update_error_detail_tab()
 
