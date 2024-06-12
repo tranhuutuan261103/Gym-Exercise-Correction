@@ -22,8 +22,8 @@ class BicepCurlModel:
         self.mp_drawing = mp.solutions.drawing_utils
         self.mp_pose = mp.solutions.pose
         current_dir = os.path.dirname(os.path.realpath(__file__))
-        self.RF_model = self.load_model(f'{current_dir}\RF_model.pkl')
-        self.input_scaler = self.load_model(f"{current_dir}\input_scaler.pkl")
+        self.RF_model = self.load_model(f'{current_dir}/best_models/RF_model.pkl')
+        self.input_scaler = self.load_model(f"{current_dir}/best_models/input_scaler.pkl")
 
         self.IMPORTANT_LMS = [
             "NOSE",
@@ -48,7 +48,7 @@ class BicepCurlModel:
         self.counter = 0
         self.last_prediction_probability_max = 0
 
-        self.error_types_audio = self.load_audio(f"{current_dir}\\audios")
+        self.error_types_audio = self.load_audio(f"{current_dir}/audios")
         self.is_playing = False
 
     def load_model(self, file_name):

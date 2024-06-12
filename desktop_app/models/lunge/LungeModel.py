@@ -22,8 +22,8 @@ class LungeModel:
         self.mp_drawing = mp.solutions.drawing_utils
         self.mp_pose = mp.solutions.pose
         current_dir = os.path.dirname(os.path.realpath(__file__))
-        self.RF_model = self.load_model(f'{current_dir}\RF_model.pkl')
-        self.input_scaler = self.load_model(f"{current_dir}\input_scaler.pkl")
+        self.RF_model = self.load_model(f'{current_dir}/best_models/RF_model.pkl')
+        self.input_scaler = self.load_model(f"{current_dir}/best_models/input_scaler.pkl")
 
         self.IMPORTANT_LMS = [
             "NOSE",
