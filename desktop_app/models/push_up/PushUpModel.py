@@ -76,8 +76,6 @@ class PushUpModel:
                 data, samplerate = sf.read(file_path)
                 filename = filename.replace(".wav", "")
                 error_types_audio[filename] = (data, samplerate)
-        # In dictionary sau khi lưu
-        print(error_types_audio)
         return error_types_audio
     
     def play_audio(self, data, samplerate):
@@ -257,6 +255,7 @@ class PushUpModel:
 
         with self.mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
             image_width, image_height = self.get_image_size(frame)
+            image = copy.deepcopy(frame)
             if image_width > 1000:
                 image = self.rescale_frame(frame, percent=50)
 
