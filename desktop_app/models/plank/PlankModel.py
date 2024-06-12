@@ -11,6 +11,8 @@ import time as Time
 import threading
 from services.Histories import create_history, save_error
 import datetime
+import soundfile as sf
+import sounddevice as sd
 
 class PlankModel:
     def __init__(self):
@@ -22,6 +24,8 @@ class PlankModel:
         current_dir = os.path.dirname(os.path.realpath(__file__))
         self.RF_model = self.load_model(f'{current_dir}\RF_model.pkl')
         self.input_scaler = self.load_model(f"{current_dir}\input_scaler.pkl")
+        self.error_types_audio = self.load_audio(f"{current_dir}\\audios")
+        self.is_playing = False
         self.IMPORTANT_LMS = [
             "NOSE",
             "LEFT_SHOULDER",
@@ -55,6 +59,35 @@ class PlankModel:
         with open(file_name, "rb") as file:
             model = pickle.load(file)
         return model
+    
+    def load_audio(self, folder_path = "audios"):
+        # Khởi tạo dictionary để lưu các đối tượng audio
+        error_types_audio = {}
+
+        # Thư mục chứa các file âm thanh
+        current_path = os.getcwd()
+
+        # Duyệt qua các file trong thư mục
+        for filename in os.listdir(folder_path):
+            file_path = os.path.join(current_path, folder_path, filename)
+            if os.path.isfile(file_path):
+                data, samplerate = sf.read(file_path)
+                filename = filename.replace(".wav", "")
+                error_types_audio[filename] = (data, samplerate)
+        # In dictionary sau khi lưu
+        print(error_types_audio)
+        return error_types_audio
+    
+    def play_audio(self, data, samplerate):
+        self.is_playing = True
+        sd.play(data, samplerate)
+        sd.wait()
+        self.is_playing = False
+
+    # Hàm bắt đầu một luồng để phát âm thanh
+    def start_audio_thread(self, data, samplerate):
+        print("Start audio thread")
+        threading.Thread(target=self.play_audio, args=(data, samplerate,), daemon=True).start()
 
     def extract_and_recalculate_landmarks(self, pose_landmarks):
         """
@@ -321,7 +354,16 @@ class PlankModel:
                 else:
                     current_class = "Unknown"
 
+                if current_class == "W" and error == "Unknown":
+                    current_class = "C"
+                    error = "None"
+
                 self.last_class = current_class
+
+                error_format = error.replace(", ", "_").replace(" ", "_").lower()
+                if current_class == "W" and error_format in self.error_types_audio and not self.is_playing:
+                    data, samplerate = self.error_types_audio[error_format]
+                    self.start_audio_thread(data, samplerate)
 
                 # Display class
                 cv2.putText(image, "CLASS", (95, 12), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
