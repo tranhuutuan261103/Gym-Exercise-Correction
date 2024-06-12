@@ -70,7 +70,7 @@ def send_push_notification(title, body):
             'title': title,
             'body': body,
         },
-        topic='finishTheExercise',
+        topic='54U9rc8mD9Nbm4dpRAUNNm7ZYGw2',
     )
 
     # Gửi thông điệp
