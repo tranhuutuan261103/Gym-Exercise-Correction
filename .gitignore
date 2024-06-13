@@ -160,4 +160,5 @@ cython_debug/
 
 # Result folder
 Keypoints/result/images
-Keypoints/data
+Keypoints/data*
+Keypoints/*.mp4
