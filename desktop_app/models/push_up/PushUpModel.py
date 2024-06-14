@@ -290,8 +290,8 @@ class PushUpModel:
                 if current_class == "W" and error == "Unknown":
                     current_class = "C"
                     error = "None"
-
-                error_type = error.replace(",  ", "_").replace(" ", "_").lower()
+                    
+                error_type = error.replace(", ", "_").replace(" ", "_").lower()
                 print(f"Error type: {error_type}")
                 if current_class == "W" and error_type in self.error_types_audio and not self.is_playing:
                     data, samplerate = self.error_types_audio[error_type]

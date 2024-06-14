@@ -287,10 +287,10 @@ class SquatModel:
             current_time = Time.time()
             errors = self.define_error(hands, current_time)
 
-            parts = errors.split(",")[:2]
+            parts = errors.split(", ")[:2]
             # Nối các phần lại với nhau
             error = ", ".join(parts)
-            error_type = error.replace(",  ", "_").replace(" ", "_").lower()
+            error_type = error.replace(", ", "_").replace(" ", "_").lower()
             print("Error type: " + error_type)
             if error_type in self.error_types_audio and not self.is_playing:
                 data, samplerate = self.error_types_audio[error_type]
