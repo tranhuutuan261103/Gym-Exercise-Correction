@@ -27,7 +27,7 @@ class Home(tk.Frame):
         self.plank_model = PlankModel()
         self.squat_model = SquatModel()
         self.lunge_model = LungeModel(0.4)
-        self.bicep_curl_model = BicepCurlModel(0.4)
+        self.bicep_curl_model = BicepCurlModel(0.1)
         self.push_up_model = PushUpModel()
 
         # Initialize UI components here...
