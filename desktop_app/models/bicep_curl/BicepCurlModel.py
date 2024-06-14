@@ -15,10 +15,10 @@ import soundfile as sf
 import sounddevice as sd
 
 class BicepCurlModel:
-    def __init__(self):
+    def __init__(self, thredhold_time_skip = 0.25):
         warnings.filterwarnings('ignore')
         self.last_time_skip = Time.time()
-        self.thredhold_time_skip = 0.25 # Số s được bỏ qua
+        self.thredhold_time_skip = thredhold_time_skip # Số s được bỏ qua
         self.mp_drawing = mp.solutions.drawing_utils
         self.mp_pose = mp.solutions.pose
         current_dir = os.path.dirname(os.path.realpath(__file__))

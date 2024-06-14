@@ -21,13 +21,13 @@ class Home(tk.Frame):
         self.current_camera_canvas = (1280, 960)
         self.camera_image = None
         self.camera_image_from_device = None
-        self.is_running = True  # Flag to control webcam updating
+        self.is_running = False  # Flag to control webcam updating
         self.is_running_from_device = False  # Flag to control video updating
 
         self.plank_model = PlankModel()
         self.squat_model = SquatModel()
-        self.lunge_model = LungeModel()
-        self.bicep_curl_model = BicepCurlModel()
+        self.lunge_model = LungeModel(0.4)
+        self.bicep_curl_model = BicepCurlModel(0.4)
         self.push_up_model = PushUpModel()
 
         # Initialize UI components here...
@@ -80,15 +80,16 @@ class Home(tk.Frame):
         self.actions_frame = tk.Frame(self, height=100)
         self.actions_frame.pack(pady=(0, 20), padx=20, fill="both", expand=True, side="right")
 
-        loadimage = PhotoImage(file=f'./desktop_app/assets/home/actions/StartBtn.png')
-        start_btn = tk.Button(self.actions_frame, image=loadimage, bd=0, border=0, command=self.toggle_camera_window)
-        start_btn.image = loadimage  # Prevent image from being garbage collected
+        self.loadimage_start_btn = PhotoImage(file=f'./desktop_app/assets/home/actions/StartBtn.png')
+        start_btn = tk.Button(self.actions_frame, image=self.loadimage_start_btn, bd=0, border=0, command=self.toggle_camera_window)
+        start_btn.image = self.loadimage_start_btn  # Prevent image from being garbage collected
         start_btn.pack(pady=10, padx=12, side="right")
 
-        loadimage = PhotoImage(file=f'./desktop_app/assets/home/actions/UploadBtn.png')
-        upload_btn = tk.Button(self.actions_frame, image=loadimage, bd=0, border=0, command=self.open_file_dialog)
-        upload_btn.image = loadimage  # Prevent image from being garbage collected
-        upload_btn.pack(pady=10, padx=12, side="right")
+        self.loadimage_test_camera_btn = PhotoImage(file=f'./desktop_app/assets/home/actions/StartTestCameraBtn.png')
+        self.loadimage_stop_test_camera_btn = PhotoImage(file=f'./desktop_app/assets/home/actions/StopTestCameraBtn.png')
+        self.test_camera_btn = tk.Button(self.actions_frame, image=self.loadimage_test_camera_btn, bd=0, border=0, command=self.start_test_camera)
+        self.test_camera_btn.image = self.loadimage_test_camera_btn  # Prevent image from being garbage collected
+        self.test_camera_btn.pack(pady=10, padx=12, side="right")
 
         # End of UI components
 
@@ -198,6 +199,36 @@ class Home(tk.Frame):
             self.video_capture = cv2.VideoCapture(0)
         self.is_running = True
         self.update_Webcam()
+
+    def test_camera(self):
+        if not self.is_running or not self.video_capture or not self.canvas:
+            self.camera_image = ImageTk.PhotoImage(image=Image.new("RGB", (711, 400), "white"))
+            self.canvas.create_image(0, 0, image=self.camera_image, anchor="nw")
+            return
+        
+        ret, frame = self.video_capture.read()
+        if ret:
+            frame = scale_image(frame, 711, 400)
+            self.camera_image = ImageTk.PhotoImage(image=Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)))
+            self.canvas.create_image(0, 0, image=self.camera_image, anchor="nw")
+        else:
+            self.video_capture.release()
+            self.video_capture = None
+
+        self.after(10, self.test_camera)
+
+    def start_test_camera(self):
+        if self.video_capture is None or not self.video_capture.isOpened():
+            self.video_capture = cv2.VideoCapture(0)
+        self.is_running = True
+        self.test_camera()
+        self.test_camera_btn.config(command=self.stop_test_camera)
+        self.test_camera_btn.config(image=self.loadimage_stop_test_camera_btn)
+
+    def stop_test_camera(self):
+        self.is_running = False
+        self.test_camera_btn.config(command=self.start_test_camera)
+        self.test_camera_btn.config(image=self.loadimage_test_camera_btn)
 
     def open_file_dialog(self):
         file_path = filedialog.askopenfilename(filetypes=[("Video files", "*.mp4")])
