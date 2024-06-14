@@ -10,6 +10,8 @@ import datetime
 import threading
 from services.Histories import create_history, save_error
 import mediapipe as mp
+import soundfile as sf
+import sounddevice as sd
 
 class SquatModel:
     def __init__(self, thredhold_time_skip = 0.25):
@@ -34,8 +36,9 @@ class SquatModel:
         self.mp_pose = mp.solutions.pose
 
         current_dir = os.path.dirname(os.path.realpath(__file__))
-        self.model = self.load_model(f"{current_dir}/SVC_model_side.pkl")
-        self.input_scaler = self.load_model(f"{current_dir}/input_scaler.pkl")
+        self.model = self.load_model(f"{current_dir}/best_models/SVC_model_side.pkl")
+        self.input_scaler = self.load_model(f"{current_dir}/best_models/input_scaler.pkl")
+        self.error_types_audio = self.load_audio(f"{current_dir}/audios")
 
         self.human_found = False
 
@@ -43,23 +46,20 @@ class SquatModel:
         self.direction = 0
         self.last_state = None
 
-        self.error1 = False
-        self.error2 = False
-        self.error3 = False
-        self.error4 = False
-        self.error5 = False
+        self.last_error_bend_forward = None
+        self.last_error_deep_squat = None
+        self.last_error_knees_straight = None
+        self.last_error_lift_hips = None
 
-        self.last_error1 = None
-        self.last_error2 = None
-        self.last_error3 = None
-        self.last_error4 = None
-        self.last_error5 = None
+        self.last_label_error_bend_forward = None
+        self.last_label_error_deep_squat = None
+        self.last_label_error_knees_straight = None
+        self.last_label_error_lift_hips = None
 
-        self.error1_start_time = None
-        self.error2_start_time = None
-        self.error3_start_time = None
-        self.error4_start_time = None
-        self.error5_start_time = None
+        self.error_bend_forward_start_time = None
+        self.error_deep_squat_start_time = None
+        self.error_knees_straight_start_time = None
+        self.error_lift_hips_start_time = None
 
         self.detector = PoseDetector(detectionCon=0.7, trackCon=0.7)
 
@@ -67,6 +67,7 @@ class SquatModel:
         self.last_time_skip = Time.time()
         self.thredhold_time_skip = thredhold_time_skip
 
+        self.is_playing = False
         self.history_id = None
 
     def extract_amd_recalculate_landmarks(self, pose_landmarks):
@@ -97,12 +98,118 @@ class SquatModel:
             model = pickle.load(file)
         return model
     
+    def load_audio(self, folder_path = "audios"):
+        # Khởi tạo dictionary để lưu các đối tượng audio
+        error_types_audio = {}
+
+        # Thư mục chứa các file âm thanh
+        current_path = os.getcwd()
+
+        # Duyệt qua các file trong thư mục
+        for filename in os.listdir(folder_path):
+            file_path = os.path.join(current_path, folder_path, filename)
+            if os.path.isfile(file_path):
+                data, samplerate = sf.read(file_path)
+                filename = filename.replace(".wav", "")
+                error_types_audio[filename] = (data, samplerate)
+        return error_types_audio
+    
+    def play_audio(self, data, samplerate):
+        self.is_playing = True
+        sd.play(data, samplerate)
+        sd.wait()
+        self.is_playing = False
+
+    # Hàm bắt đầu một luồng để phát âm thanh
+    def start_audio_thread(self, data, samplerate):
+        print("Start audio thread")
+        threading.Thread(target=self.play_audio, args=(data, samplerate,), daemon=True).start()
+    
     def get_class(self, encode_label: float):
         return {
             0: "D",
             1: "M",
             2: "U",
         }.get(encode_label, "Unknown")
+    
+    def counting_number_of_squat(self, hands):
+        # Extracting values
+        left, right, leftBackAngle, rightBackAngle, leftkneeAngleLineAngle, rightkneeAngleLineAngle = hands[0:]
+
+        # Counting number of squat
+        if left > 75 and right > 75:
+            if self.direction == 0:
+                self.counter += 0.5
+                self.direction = 1
+        if left <= 70 and right <= 70:
+            if self.direction == 1:
+                self.counter += 0.5
+                self.direction = 0
+    
+    def define_error(self, hands, current_time):
+        # Init errors
+        errors = []
+
+        # Extracting values
+        left, right, leftBackAngle, rightBackAngle, leftkneeAngleLineAngle, rightkneeAngleLineAngle = hands[0:]
+
+        # Error 1: Bend forward
+        if leftBackAngle >= 45 and rightBackAngle >= 45:
+            self.last_error_bend_forward = True
+            errors.append("bend_forward")
+            if self.error_bend_forward_start_time is None:
+                self.error_bend_forward_start_time = current_time
+        elif self.last_error_bend_forward is not None:
+            self.last_error_bend_forward = None
+
+        if self.last_error_bend_forward and self.error_bend_forward_start_time and (current_time - self.error_bend_forward_start_time) < 1000:
+            self.last_label_error_bend_forward = "bend_forward"
+        else:
+            self.last_label_error_bend_forward = None
+
+        if self.last_error_deep_squat and self.error_deep_squat_start_time and (current_time - self.error_deep_squat_start_time) < 1000:
+            self.last_label_error_deep_squat = "deep_squat"
+        else:
+            self.last_label_error_deep_squat = None
+
+        if self.last_error_knees_straight and self.error_knees_straight_start_time and (current_time - self.error_knees_straight_start_time) < 1000:
+            self.last_label_error_knees_straight = "knees_straight"
+        else:
+            self.last_label_error_knees_straight = None
+
+        if self.last_error_lift_hips and self.error_lift_hips_start_time and (current_time - self.error_lift_hips_start_time) < 1000:
+            self.last_label_error_lift_hips = "lift_hips"
+        else:
+            self.last_label_error_lift_hips = None
+
+        # Error 2: Deep squat
+        if left >= 95 and right >= 95:
+            self.last_error_deep_squat = True
+            errors.append("deep_squat")
+            if self.error_deep_squat_start_time is None:
+                self.error_deep_squat_start_time = current_time
+        elif self.error_deep_squat_start_time is not None:
+            self.error_deep_squat_start_time = None
+
+        # Error 3: Knees straight
+        if leftkneeAngleLineAngle >= 30 and rightkneeAngleLineAngle >= 30:
+            self.last_error_knees_straight = True
+            errors.append("knees_straight")
+            if self.error_knees_straight_start_time is None:
+                self.error_knees_straight_start_time = current_time
+        elif self.error_knees_straight_start_time is not None:
+            self.error_knees_straight_start_time = None
+
+        # Error 4: Lift hips
+        if leftBackAngle >= 30 and rightBackAngle >= 30 and left <= 80 and right <= 80:
+            self.last_error_lift_hips = True
+            errors.append("lift_hips")
+            if self.error_lift_hips_start_time is None:
+                self.error_lift_hips_start_time = current_time
+        elif self.error_lift_hips_start_time is not None:
+            self.error_lift_hips_start_time = None
+
+        return ", ".join(errors)
     
     def squat_detection_realtime(self, frame, size_original = (640, 480)):
         time_skip_diff = Time.time() - self.last_time_skip
@@ -128,21 +235,18 @@ class SquatModel:
             cv2.putText(image, f"State: {self.last_state}", (100, 70), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
         # Draw errors
-        if self.last_error1 is not None:
-            cv2.rectangle(image, (620, 10), (880, 50), (0, 215, 215), -1)
-            cv2.putText(image, "Bend Forward", (630, 30), cv2.FONT_HERSHEY_TRIPLEX , 0.7, (59, 59, 56), 3)
-        if self.last_error2 is not None:
-            cv2.rectangle(image, (620, 60), (880, 100), (0, 215, 215), -1)
-            cv2.putText(image, "Bend Backwards", (630, 80), cv2.FONT_HERSHEY_TRIPLEX , 0.7, (59, 59, 56), 3)
-        if self.last_error3 is not None:
-            cv2.rectangle(image, (620, 110), (880, 150), (64, 64, 204), -1)
-            cv2.putText(image, "Lower one's hips", (630, 130), cv2.FONT_HERSHEY_TRIPLEX, 0.7, (255, 255, 230), 3)
-        if self.last_error4 is not None:
-            cv2.rectangle(image, (620, 160), (880, 200), (64, 64, 204), -1)
-            cv2.putText(image, "Knee falling over toes", (630, 180), cv2.FONT_HERSHEY_TRIPLEX, 0.6, (255, 255, 230), 3)
-        if self.last_error5 is not None:
-            cv2.rectangle(image, (620, 210), (880, 250), (204, 122, 0), -1)
-            cv2.putText(image, "Deep squats", (630, 230), cv2.FONT_HERSHEY_TRIPLEX, 0.7, (255, 255, 230), 3)
+        if self.last_label_error_bend_forward is not None:
+            cv2.rectangle(image, (380, 60), (630, 100), (64, 64, 204), -1)
+            cv2.putText(image, "Bend Forward", (390, 80), cv2.FONT_HERSHEY_TRIPLEX , 0.7, (255, 255, 230), 3)
+        if self.last_label_error_lift_hips is not None:
+            cv2.rectangle(image, (380, 110), (630, 150), (64, 64, 204), -1)
+            cv2.putText(image, "Lower one's hips", (390, 130), cv2.FONT_HERSHEY_TRIPLEX, 0.7, (255, 255, 230), 3)
+        if self.last_label_error_knees_straight is not None:
+            cv2.rectangle(image, (380, 160), (630, 200), (64, 64, 204), -1)
+            cv2.putText(image, "Knee falling over toes", (390, 180), cv2.FONT_HERSHEY_TRIPLEX, 0.6, (255, 255, 230), 3)
+        if self.last_label_error_deep_squat is not None:
+            cv2.rectangle(image, (380, 210), (630, 250), (204, 122, 0), -1)
+            cv2.putText(image, "Deep squats", (390, 230), cv2.FONT_HERSHEY_TRIPLEX, 0.7, (255, 255, 230), 3)
 
         return image
 
@@ -176,134 +280,21 @@ class SquatModel:
 
             angle1 = angleFinder(img, lmList, 23, 25, 27, 24, 26, 28, 11, 12, drawPoints=True)
             hands = angle1.angle()
-            left, right, leftBackAngle, rightBackAngle, leftkneeAngleLineAngle, rightkneeAngleLineAngle = hands[0:]
-
-            # Set lại giá trị ban đầu
-            self.error1 = False
-            self.error2 = False
-            self.error3 = False
-            self.error4 = False
-            self.error5 = False
-
+            
             # Counting number of squat
-            if left > 75 and right > 75:
-                if self.direction == 0:
-                    self.counter += 0.5
-                    self.direction = 1
-            if left <= 70 and right <= 70:
-                if self.direction == 1:
-                    self.counter += 0.5
-                    self.direction = 0
+            self.counting_number_of_squat(hands)
 
             current_time = Time.time()
+            errors = self.define_error(hands, current_time)
 
-            if leftBackAngle >= 15 and rightBackAngle >= 15:
-                self.error1 = True
-                if self.error1_start_time is None:  # Nếu lỗi mới xuất hiện
-                    self.error1_start_time = current_time
-            elif self.error1_start_time is not None:
-                self.error1_start_time = None  # Reset thời gian nếu lỗi không còn
-
-            if leftBackAngle >= 45 and rightBackAngle >= 45:
-                self.error2 = True
-                if self.error2_start_time is None:
-                    self.error2_start_time = current_time
-            elif self.error2_start_time is not None:
-                self.error2_start_time = None
-
-            if leftBackAngle >= 30 and rightBackAngle >= 30 and left <= 80 and right <= 80:
-                self.error3 = True
-                if self.error3_start_time is None:
-                    self.error3_start_time = current_time
-            elif self.error3_start_time is not None:
-                self.error3_start_time = None
-
-            if leftkneeAngleLineAngle >= 30 and rightkneeAngleLineAngle >= 30:
-                self.error4 = True
-                if self.error4_start_time is None:
-                    self.error4_start_time = current_time
-            elif self.error4_start_time is not None:
-                self.error4_start_time = None
-
-            if left >= 95 and right >= 95:
-                self.error5 = True
-                if self.error5_start_time is None:
-                    self.error5_start_time = current_time
-            elif self.error5_start_time is not None:
-                self.error5_start_time = None
-
-            # putting scores on the screen
-            cv2.rectangle(img, (0, 0), (120, 120), (255, 0, 0), -1)
-            cv2.putText(img, str(int(self.counter)), (1, 70), cv2.FONT_HERSHEY_SCRIPT_SIMPLEX, 1.6, (0, 0, 255), 6)
-
-            # Draw errors
-            if self.error1 and self.error1_start_time  and (current_time - self.error1_start_time) < 1000:
-                cv2.rectangle(img, (380, 10), (630, 50), (0, 215, 215), -1)
-                cv2.putText(img, "Bend Forward", (390, 30), cv2.FONT_HERSHEY_TRIPLEX , 0.7, (59, 59, 56), 3)
-                errors.append("Bend Forward")
-                self.last_error1 = "Bend Forward"
-            else:
-                self.last_error1 = None
-
-            if self.error2 and self.error2_start_time and (current_time - self.error2_start_time) < 1000:
-                cv2.rectangle(img, (380, 60), (630, 100), (0, 215, 215), -1)
-                cv2.putText(img, "Bend Backwards", (390, 80), cv2.FONT_HERSHEY_TRIPLEX , 0.7, (59, 59, 56), 3)
-                errors.append("Bend Backwards")
-                self.last_error2 = "Bend Backwards"
-            else:
-                self.last_error2 = None
-
-            if self.error3 and self.error3_start_time and (current_time - self.error3_start_time) < 1000:
-                cv2.rectangle(img, (380, 110), (630, 150), (64, 64, 204), -1)
-                cv2.putText(img, "Lower one's hips", (390, 130), cv2.FONT_HERSHEY_TRIPLEX, 0.7, (255, 255, 230), 3)
-                errors.append("Lower one's hips")
-                self.last_error3 = "Lower one's hips"
-            else:
-                self.last_error3 = None
-
-            if self.error4 and self.error4_start_time and (current_time - self.error4_start_time) < 1000:
-                cv2.rectangle(img, (380, 160), (630, 200), (64, 64, 204), -1)
-                cv2.putText(img, "Knee falling over toes", (390, 180), cv2.FONT_HERSHEY_TRIPLEX, 0.6, (255, 255, 230), 3)
-                errors.append("Knee falling over toes")
-                self.last_error4 = "Knee falling over toes"
-            else:
-                self.last_error4 = None
-
-            if self.error5 and self.error5_start_time and (current_time - self.error5_start_time) < 1000:
-                cv2.rectangle(img, (380, 210), (630, 250), (204, 122, 0), -1)
-                cv2.putText(img, "Deep squats", (390, 230), cv2.FONT_HERSHEY_TRIPLEX, 0.7, (255, 255, 230), 3)
-                errors.append("Deep squats")
-                self.last_error5 = "Deep squats"
-            else:
-                self.last_error5 = None
-
-            # Converting values for rectangles
-            leftval = np.interp(left, [0, 100], [400, 200])
-            rightval = np.interp(right, [0, 100], [400, 200])
-
-            # For color changing
-            value_left = np.interp(left, [0, 100], [0, 100])
-            value_right = np.interp(right, [0, 100], [0, 100])
-
-            # Drawing right rectangle and putting text
-            cv2.putText(img, 'R', (24, 195), cv2.FONT_HERSHEY_DUPLEX, 1, (255, 0, 0), 5)
-            cv2.rectangle(img, (8, 200), (50, 400), (0, 255, 0), 5)
-            cv2.rectangle(img, (8, int(rightval)), (50, 400), (255, 0, 0), -1)
-
-            # Drawing right rectangle and putting text
-            cv2.putText(img, 'L', (604, 195), cv2.FONT_HERSHEY_DUPLEX, 1, (255, 0, 0), 5)
-            cv2.rectangle(img, (582, 200), (632, 400), (0, 255, 0), 5)
-            cv2.rectangle(img, (582, int(leftval)), (632, 400), (255, 0, 0), -1)
-
-            # Tô màu đỏ khi góc đạt đến trạng thái s3
-            if value_left > 75:
-                cv2.rectangle(img, (582, int(leftval)), (632, 400), (0, 0, 255), -1)
-
-            if value_right > 75:
-                cv2.rectangle(img, (8, int(rightval)), (50, 400), (0, 0, 255), -1)
-
-            if len(errors) > 0:
-                self.save_error(", ".join(errors), img)
+            parts = errors.split(",")[:2]
+            # Nối các phần lại với nhau
+            error = ", ".join(parts)
+            error_type = error.replace(",  ", "_").replace(" ", "_").lower()
+            print("Error type: " + error_type)
+            if error_type in self.error_types_audio and not self.is_playing:
+                data, samplerate = self.error_types_audio[error_type]
+                self.start_audio_thread(data, samplerate)
         
 
     def save_error(self, error, image_frame):
