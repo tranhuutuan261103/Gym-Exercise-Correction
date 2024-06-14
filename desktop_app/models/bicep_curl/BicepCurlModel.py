@@ -47,6 +47,8 @@ class BicepCurlModel:
         self.last_predicted_stage = "Unknown"
         self.counter = 0
         self.last_prediction_probability_max = 0
+        self.direction = "Up"
+        self.last_angles = [0, 0]
 
         self.error_types_audio = self.load_audio(f"{current_dir}/audios")
         self.is_playing = False
@@ -126,6 +128,20 @@ class BicepCurlModel:
         # convert to degree
         return np.arccos(cos_theta) * 180 / np.pi
     
+    def calculate_angle(self, a, b, c, size_of_image):
+        # Lấy tọa độ của 3 điểm
+        a = (a[0] * size_of_image[0], a[1] * size_of_image[1])
+        b = (b[0] * size_of_image[0], b[1] * size_of_image[1])
+        c = (c[0] * size_of_image[0], c[1] * size_of_image[1])
+
+        # Tính góc giữa 3 điểm
+        ba_vector = [a[0] - b[0], a[1] - b[1]]
+        bc_vector = [c[0] - b[0], c[1] - b[1]]
+        ba_length = math.sqrt(ba_vector[0] ** 2 + ba_vector[1] ** 2)
+        bc_length = math.sqrt(bc_vector[0] ** 2 + bc_vector[1] ** 2)
+
+        return math.degrees(math.acos((ba_vector[0] * bc_vector[0] + ba_vector[1] * bc_vector[1]) / (ba_length * bc_length)))    
+    
     def get_image_size(self, image):
         """
         Lấy kích thước của ảnh
@@ -141,7 +157,33 @@ class BicepCurlModel:
         else:
             return "right"
         
-    def define_errors(self, key_points):
+    def determine_stage(self, key_points, image_size):
+        # Dựa vào góc giữa khuỷu tay, cổ tay và vai để xác định giai đoạn của động tác Bicep Curl
+        left_shoulder = [key_points[11].x, key_points[11].y]
+        right_shoulder = [key_points[12].x, key_points[12].y]
+        left_elbow = [key_points[13].x, key_points[13].y]
+        right_elbow = [key_points[14].x, key_points[14].y]
+        left_wrist = [key_points[15].x, key_points[15].y]
+        right_wrist = [key_points[16].x, key_points[16].y]
+
+        # Tính góc giữa 2 vector
+        left_angle = self.calculate_angle(left_shoulder, left_elbow, left_wrist, image_size)
+        right_angle = self.calculate_angle(right_shoulder, right_elbow, right_wrist, image_size)
+        
+        if abs(left_angle - right_angle) < 10:
+            angle = max(left_angle, right_angle)
+        else:
+            angle = min(left_angle, right_angle)
+        print(left_angle, right_angle)
+
+        if angle > 160:
+            return "Down"
+        elif angle > 90:
+            return "Middle"
+        else:
+            return "Up"
+        
+    def define_errors(self, key_points, image_size):
         errors = []
         left_shoulder = [key_points[11].x, key_points[11].y]
         right_shoulder = [key_points[12].x, key_points[12].y]
@@ -157,22 +199,28 @@ class BicepCurlModel:
         right_index = [key_points[20].x, key_points[20].y]
 
         # Góc giữa vector vai, hông và đầu gối
-        angle = self.angle_2_vector(np.array(left_shoulder) - np.array(left_hip), np.array(left_knee) - np.array(left_hip))
-        angle = max(angle, self.angle_2_vector(np.array(right_shoulder) - np.array(right_hip), np.array(right_knee) - np.array(right_hip)))
-        if angle < 160:
+        angle = self.calculate_angle(left_shoulder, left_hip, left_knee, image_size)
+        angle = max(angle, self.calculate_angle(right_shoulder, right_hip, right_knee, image_size))
+        if angle < 170:
             errors.append("body not straight")
 
         # Góc giữa vai, khuỷu tay và hông
-        angle = self.angle_2_vector(np.array(left_shoulder) - np.array(left_hip), np.array(left_shoulder) - np.array(left_elbow))
-        angle = max(angle, self.angle_2_vector(np.array(right_shoulder) - np.array(right_hip), np.array(right_shoulder) - np.array(right_elbow)))
-        if angle > 30:
+        angle = self.calculate_angle(left_shoulder, left_hip, left_elbow, image_size)
+        angle = max(angle, self.calculate_angle(right_shoulder, right_hip, right_elbow, image_size))
+        if angle > 25:
             errors.append("arm not straight")
 
         # Góc giữa khuỷu tay, cổ tay và ngón tay trỏ
-        angle = self.angle_2_vector(np.array(left_elbow) - np.array(left_wrist), np.array(left_elbow) - np.array(left_index))
-        angle = max(angle, self.angle_2_vector(np.array(right_elbow) - np.array(right_wrist), np.array(right_elbow) - np.array(right_index)))
-        if angle >= 15:
-            errors.append("wrist not straight")
+        left_angle = 180 - self.calculate_angle(left_elbow, left_wrist, left_index, image_size)
+        right_angle = 180 - self.calculate_angle(right_elbow, right_wrist, right_index, image_size)
+        self.last_angles[0] = round(left_angle, 2)
+        self.last_angles[1] = round(right_angle, 2)
+        if abs(left_angle - right_angle) < 10:
+            angle = max(left_angle, right_angle)
+        else:
+            angle = min(left_angle, right_angle)
+        # if angle > 40:
+        #     errors.append("wrist not straight")
 
         if errors == []:
             return "None"
@@ -215,6 +263,9 @@ class BicepCurlModel:
         for error in self.last_errors_list:
             cv2.putText(image, error, (220, y_position), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 150, 255), 2, cv2.LINE_AA)
             y_position += 30
+
+        cv2.putText(image, "ANGLES", (380, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(image, str(self.last_angles), (380, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 150, 255), 2, cv2.LINE_AA)
         return image
     
     def task(self, frame, size_original, prediction_probability_threshold):
@@ -231,14 +282,16 @@ class BicepCurlModel:
             image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
             try:
-                errors = self.define_errors(results.pose_landmarks.landmark)
-                key_points = self.extract_and_recalculate_landmarks(results.pose_landmarks.landmark)
-                X = pd.DataFrame([key_points], columns=self.HEADERS[1:])
-                X = self.input_scaler.transform(X)
+                image_size = self.get_image_size(image)
+                errors = self.define_errors(results.pose_landmarks.landmark, image_size)
+                # key_points = self.extract_and_recalculate_landmarks(results.pose_landmarks.landmark)
+                # X = pd.DataFrame([key_points], columns=self.HEADERS[1:])
+                # X = self.input_scaler.transform(X)
 
-                predicted_stage = self.RF_model.predict(X)[0]
-                predicted_stage = self.get_class(predicted_stage)
-                prediction_probability_max = self.RF_model.predict_proba(X)[0].max()
+                # predicted_stage = self.RF_model.predict(X)[0]
+                # predicted_stage = self.get_class(predicted_stage)
+                # prediction_probability_max = self.RF_model.predict_proba(X)[0].max()
+                predicted_stage = self.determine_stage(results.pose_landmarks.landmark, image_size)
 
                 errors_list = errors.split(", ")
                 self.last_errors_list = errors_list
@@ -253,14 +306,14 @@ class BicepCurlModel:
                     self.start_audio_thread(*self.error_types_audio[error_types])
 
                 if self.last_state == "Up" and predicted_stage == "Middle":
-                    direction = "Down"
-                elif self.last_state == "Middle" and predicted_stage == "Down" and direction == "Down":
+                    self.direction = "Down"
+                elif self.last_state == "Middle" and predicted_stage == "Down" and self.direction == "Down":
                     self.counter += 1
-                    direction = "Up"
+                    self.direction = "Up"
 
                 self.last_state = predicted_stage
                 self.last_predicted_stage = predicted_stage
-                self.last_prediction_probability_max = prediction_probability_max
+                self.last_prediction_probability_max = 1
             except Exception as e:
                 print(e)
                 self.last_errors = "Unknown"
