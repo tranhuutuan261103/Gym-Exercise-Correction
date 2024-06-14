@@ -12,7 +12,7 @@ from services.Histories import create_history, save_error
 import mediapipe as mp
 
 class SquatModel:
-    def __init__(self):
+    def __init__(self, thredhold_time_skip = 0.25):
         self.IMPORTANT_LMS = [
             "NOSE",
             "LEFT_SHOULDER",
@@ -65,7 +65,7 @@ class SquatModel:
 
         # Config for skipping frame
         self.last_time_skip = Time.time()
-        self.thredhold_time_skip = 0.25
+        self.thredhold_time_skip = thredhold_time_skip
 
         self.history_id = None
 
