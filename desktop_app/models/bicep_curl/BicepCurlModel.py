@@ -1,9 +1,7 @@
 import mediapipe as mp
 import math
 import numpy as np
-import pandas as pd
 import cv2
-import copy
 import warnings
 import pickle
 import os
@@ -189,8 +187,6 @@ class BicepCurlModel:
         right_shoulder = [key_points[12].x, key_points[12].y]
         left_hip = [key_points[23].x, key_points[23].y]
         right_hip = [key_points[24].x, key_points[24].y]
-        left_knee = [key_points[25].x, key_points[25].y]
-        right_knee = [key_points[26].x, key_points[26].y]
         left_elbow = [key_points[13].x, key_points[13].y]
         right_elbow = [key_points[14].x, key_points[14].y]
         left_wrist = [key_points[15].x, key_points[15].y]
@@ -199,28 +195,43 @@ class BicepCurlModel:
         right_index = [key_points[20].x, key_points[20].y]
 
         # Góc giữa vector vai, hông và đầu gối
-        angle = self.calculate_angle(left_shoulder, left_hip, left_knee, image_size)
-        angle = max(angle, self.calculate_angle(right_shoulder, right_hip, right_knee, image_size))
-        if angle < 170:
+        left_body_angle = self.angle_2_vector(
+            np.array(
+                [
+                    (left_shoulder[0] - left_hip[0]) * image_size[0],
+                    (left_shoulder[1] - left_hip[1]) * image_size[1],
+                ]
+            ),
+            np.array([1, 0]),
+        )
+        right_body_angle = self.angle_2_vector(
+            np.array(
+                [
+                    (right_shoulder[0] - right_hip[0]) * image_size[0],
+                    (right_shoulder[1] - right_hip[1]) * image_size[1],
+                ]
+            ),
+            np.array([1, 0]),
+        )
+        angle = max(left_body_angle, right_body_angle)
+        if angle < 80 or angle > 100:
             errors.append("body not straight")
 
         # Góc giữa vai, khuỷu tay và hông
         angle = self.calculate_angle(left_shoulder, left_hip, left_elbow, image_size)
-        angle = max(angle, self.calculate_angle(right_shoulder, right_hip, right_elbow, image_size))
+        angle = max(
+            angle, self.calculate_angle(right_shoulder, right_hip, right_elbow, image_size)
+        )
         if angle > 25:
             errors.append("arm not straight")
 
         # Góc giữa khuỷu tay, cổ tay và ngón tay trỏ
-        left_angle = 180 - self.calculate_angle(left_elbow, left_wrist, left_index, image_size)
-        right_angle = 180 - self.calculate_angle(right_elbow, right_wrist, right_index, image_size)
-        self.last_angles[0] = round(left_angle, 2)
-        self.last_angles[1] = round(right_angle, 2)
-        if abs(left_angle - right_angle) < 10:
-            angle = max(left_angle, right_angle)
-        else:
-            angle = min(left_angle, right_angle)
-        # if angle > 40:
-        #     errors.append("wrist not straight")
+        angle = self.calculate_angle(left_elbow, left_wrist, left_index, image_size)
+        angle = 180 - max(
+            angle, self.calculate_angle(right_elbow, right_wrist, right_index, image_size)
+        )
+        if angle >= 50:
+            errors.append("wrist not straight")
 
         if errors == []:
             return "None"

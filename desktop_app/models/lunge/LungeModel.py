@@ -52,10 +52,29 @@ class LungeModel:
         self.counter = 0
         self.last_prediction_probability_max = 0
 
+        self.error_types_audio = self.load_audio(f"{current_dir}/audios")
+        self.is_playing = False
+
     def load_model(self, file_name):
         with open(file_name, "rb") as file:
             model = pickle.load(file)
         return model
+    
+    def load_audio(self, folder_path = "audios"):
+        # Khởi tạo dictionary để lưu các đối tượng audio
+        error_types_audio = {}
+
+        # Thư mục chứa các file âm thanh
+        current_path = os.getcwd()
+
+        # Duyệt qua các file trong thư mục
+        for filename in os.listdir(folder_path):
+            file_path = os.path.join(current_path, folder_path, filename)
+            if os.path.isfile(file_path):
+                data, samplerate = sf.read(file_path)
+                filename = filename.replace(".wav", "")
+                error_types_audio[filename] = (data, samplerate)
+        return error_types_audio
     
     def extract_and_recalculate_landmarks(self, pose_landmarks):
         """
@@ -100,6 +119,12 @@ class LungeModel:
         dim = (width, height)
         return cv2.resize(frame, dim, interpolation =cv2.INTER_AREA)
 
+    def get_image_size(self, image):
+        """
+        Lấy kích thước của ảnh
+        """
+        return image.shape[1], image.shape[0]
+    
     def get_class(self, encode_label: float):
         return {
             0: "Down",
@@ -220,6 +245,9 @@ class LungeModel:
         else:
             return ", ".join(errors)
     
+    def start_audio_thread(self, data, samplerate):
+        threading.Thread(target=self.play_audio, args=(data, samplerate,), daemon=True).start()
+
     def lunge_detection_realtime(self, frame, size_original, prediction_probability_threshold=0.5):
         time_skip_diff = Time.time() - self.last_time_skip
         
@@ -264,13 +292,27 @@ class LungeModel:
             try:
                 key_points = self.extract_and_recalculate_landmarks(results.pose_landmarks.landmark)
                 X = pd.DataFrame([key_points], columns=self.HEADERS[1:])
-                errors = self.define_errors(X, self.get_image_size(image))
+                X_original = copy.deepcopy(X)
                 X = self.input_scaler.transform(X)
 
                 predicted_stage = self.RF_model.predict(X)[0]
                 predicted_stage = self.get_class(predicted_stage)
                 self.last_predicted_stage = predicted_stage
                 prediction_probability_max = self.RF_model.predict_proba(X)[0].max()
+
+                if current_stage == "Down" and not self.is_playing:
+                    errors = self.define_errors(X_original, self.get_image_size(image))
+                    errors_list = errors.split(", ")
+                    if len(errors_list) == 1:
+                        error_types = errors_list[0].replace(" ", "_")
+                    elif len(errors_list) == 2:
+                        error_types = "_".join(errors_list).replace(" ", "_")
+                    else:
+                        error_types = "_".join([errors_list[0], errors_list[1]]).replace(" ", "_")
+                    
+                    if errors != "None" and error_types in self.error_types_audio and not self.is_playing:
+                        print(error_types)
+                        self.start_audio_thread(*self.error_types_audio[error_types])
 
                 if prediction_probability_max >= prediction_probability_threshold:
                     if predicted_stage == "Down" and current_stage == "Middle":
@@ -279,6 +321,7 @@ class LungeModel:
                     self.last_state = current_stage
                     self.last_errors = errors
                     self.last_prediction_probability_max = prediction_probability_max
+
             except Exception as e:
                 self.last_state = "Unknown"
                 self.last_errors = "Unknown"
@@ -298,9 +341,3 @@ class LungeModel:
             "Datetime": datetime.datetime.now(),
             "UserID": "54U9rc8mD9Nbm4dpRAUNNm7ZYGw2"
         })
-
-    def get_image_size(self, image):
-        """
-        Lấy kích thước của ảnh
-        """
-        return image.shape[1], image.shape[0]
