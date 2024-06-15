@@ -10,7 +10,7 @@ from services.Histories import get_histories
 import threading
 from tkinter.ttk import *
 
-class History(tk.Frame):
+class History2(tk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         self.controller = controller
@@ -38,16 +38,16 @@ class History(tk.Frame):
 
     def create_history_list(self):
         # History list frame on the left
-        self.canvas = tk.Canvas(self.fram_main)
-        self.frame_history = ttk.Frame(self.canvas, relief='solid', borderwidth=1, style='TFrame')
-        self.scrollbar = ttk.Scrollbar(self.fram_main, orient="vertical", command=self.canvas.yview)
-        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        self.canvas_history = tk.Canvas(self.fram_main)
+        self.frame_history = ttk.Frame(self.canvas_history, relief='solid', borderwidth=1, style='TFrame')
+        self.scrollbar_history = ttk.Scrollbar(self.fram_main, orient="vertical", command=self.canvas_history.yview)
+        self.canvas_history.configure(yscrollcommand=self.scrollbar_history.set)
 
-        self.scrollbar.grid(row=0, column=0, sticky='ns', padx=(10, 5), pady=10)
-        self.canvas.grid(row=0, column=1, sticky='nsew', padx=(10, 5), pady=10)
-        self.canvas.create_window((0, 0), window=self.frame_history, anchor='nw')
+        self.scrollbar_history.grid(row=0, column=0, sticky='ns', padx=(10, 5), pady=10)
+        self.canvas_history.grid(row=0, column=1, sticky='nsew', padx=(10, 5), pady=10)
+        self.canvas_history.create_window((0, 0), window=self.frame_history, anchor='nw')
         
-        self.frame_history.bind("<Configure>", self.on_frame_configure)
+        self.frame_history.bind("<Configure>", self.on_frame_history_configure)
         self.fram_main.grid_rowconfigure(0, weight=1)
         self.fram_main.grid_columnconfigure(1, weight=3)  # 30%
 
@@ -70,8 +70,8 @@ class History(tk.Frame):
             date.pack(anchor='w')
             date.bind("<Button-1>", lambda event, h=history, history_frame=self.frame_history_item: self.on_history_click(h, history_frame))  # Bind click to the label
 
-    def on_frame_configure(self, event):
-        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+    def on_frame_history_configure(self, event):
+        self.canvas_history.configure(scrollregion=self.canvas_history.bbox("all"))
 
     def create_styles(self):
         self.s = Style()
@@ -131,11 +131,21 @@ class History(tk.Frame):
                 error_label.pack(anchor='w', padx=10, pady=5)
 
     def create_error_detail_tab(self, parent, error_title):
-        # Container frame for the detailed error reports
-        self.detail_frame = ttk.Frame(parent)
-        parent.add(self.detail_frame, text=error_title)
-        label = ttk.Label(self.detail_frame, text="Select a history to view the error details.", foreground="gray")
-        label.pack(pady=10)
+        # Create canvas and scrollbar for the detail tab
+        self.canvas_detail = tk.Canvas(parent)
+        self.scrollbar_detail = ttk.Scrollbar(parent, orient="vertical", command=self.canvas_detail.yview)
+        self.canvas_detail.configure(yscrollcommand=self.scrollbar_detail.set)
+
+        self.scrollbar_detail.pack(side="right", fill="y")
+        self.canvas_detail.pack(side="left", fill="both", expand=True)
+
+        self.detail_frame = ttk.Frame(self.canvas_detail)
+        self.canvas_detail.create_window((0, 0), window=self.detail_frame, anchor='nw')
+        
+        self.detail_frame.bind("<Configure>", self.on_frame_detail_configure)
+
+    def on_frame_detail_configure(self, event):
+        self.canvas_detail.configure(scrollregion=self.canvas_detail.bbox("all"))
 
     def update_error_detail_tab(self):
         # Clear the current content
@@ -179,11 +189,10 @@ class History(tk.Frame):
                         load_image_from_url(error_detail_images, callback)
                     
                     error_detail_image_container_row.pack(side="top", padx=5)
-            
 
     def get_error_details_for_current_history(self):
         return self.current_selected_history
-    
+
 def load_image_from_url(url, callback):
     def task():
         try:

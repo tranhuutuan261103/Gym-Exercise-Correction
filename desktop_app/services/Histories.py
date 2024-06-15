@@ -1,15 +1,15 @@
 from services.db import get_all_docs
 from services.db import db, bucket
 from firebase_admin import messaging
+from google.cloud import firestore
 import time as Time
 
 def get_histories():
+    # Get all histories from the database acsending by time
     result = []
-    for doc in get_all_docs("Histories"):
-        # get the data and id of the document and append it to the result list
-        data = doc.to_dict()
-        data["id"] = doc.id
-        result.append(data)
+    ref = db.collection("Histories").order_by("Datetime", direction=firestore.Query.DESCENDING).stream()
+    for doc in ref:
+        result.append(doc.to_dict())
     return result
 
 def create_history(history):
