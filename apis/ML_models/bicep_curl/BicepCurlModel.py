@@ -15,25 +15,6 @@ class BicepCurlModel:
         self.mp_drawing = mp.solutions.drawing_utils
         self.current_dir = os.path.dirname(os.path.realpath(__file__))
         self.mp_pose = mp.solutions.pose
-        self.IMPORTANT_LMS = [
-            "NOSE",
-            "LEFT_SHOULDER",
-            "RIGHT_SHOULDER",
-            "LEFT_HIP",
-            "RIGHT_HIP",
-            "LEFT_KNEE",
-            "RIGHT_KNEE",
-            "LEFT_ANKLE",
-            "RIGHT_ANKLE",
-            "LEFT_HEEL",
-            "RIGHT_HEEL",
-            "LEFT_FOOT_INDEX",
-            "RIGHT_FOOT_INDEX",
-        ]
-        self.HEADERS = ["label"]
-        for landmark in self.IMPORTANT_LMS:
-            for dim in ["x", "y", "z"]:
-                self.HEADERS.append(f"{landmark.lower()}_{dim}")
 
     def rescale_frame(self, frame, percent=50):
         """

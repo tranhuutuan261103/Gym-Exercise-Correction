@@ -16,6 +16,7 @@ from firebase_utils import (
 from ML_models.plank.PlankModel import PlankModel
 from ML_models.lunge.LungeModel import LungeModel
 from ML_models.bicep_curl.BicepCurlModel import BicepCurlModel
+from ML_models.squat.SquatModel import SquatModel
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 UPLOADED_VIDEOS = "uploaded_videos"
@@ -27,6 +28,7 @@ class VideoModel:
         "plank": PlankModel(),
         "lunge": LungeModel(),
         "bicep_curl": BicepCurlModel(),
+        "squat": SquatModel(),
     }
 
     def init_empty_handle_video_record(self, user_id, exercise_type):
