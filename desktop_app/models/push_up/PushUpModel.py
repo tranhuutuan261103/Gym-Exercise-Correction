@@ -157,6 +157,20 @@ class PushUpModel:
             angle += 360
         return angle
     
+    def calculate_vertical_angle(self, point1, point2, size_of_image):
+        x1, y1 = point1[0] * size_of_image[0], point1[1] * size_of_image[1]
+        x2, y2 = point2[0] * size_of_image[0], point2[1] * size_of_image[1]
+
+        angle = math.degrees(math.atan2(y2 - y1, x2 - x1))
+
+        # Điều chỉnh góc để nó nằm trong khoảng từ 0 đến 180 độ
+        if angle < 0:
+            angle += 180
+        elif angle > 180:
+            angle -= 180
+
+        return angle
+    
     def define_error(self, key_points, image_size):
         error = []
         angle = 180
@@ -179,37 +193,18 @@ class PushUpModel:
 
         angle = 90
         if (key_points.nose_x[0] > 0):
-            angle = self.calculate_angle((key_points.right_shoulder_x[0], key_points.right_shoulder_y[0]),
-                                (key_points.right_elbow_x[0], key_points.right_elbow_y[0]),
-                                (key_points.right_wrist_x[0], key_points.right_wrist_y[0]),
-                                image_size)
+            angle = self.calculate_vertical_angle([key_points.right_shoulder_x[0], key_points.right_shoulder_y[0]], 
+                                          [key_points.right_wrist_x[0], key_points.right_wrist_y[0]], 
+                                          image_size)
         else:
-            angle = self.calculate_angle((key_points.left_shoulder_x[0], key_points.left_shoulder_y[0]),
-                                (key_points.left_elbow_x[0], key_points.left_elbow_y[0]),
-                                (key_points.left_wrist_x[0], key_points.left_wrist_y[0]),
-                                image_size)
+            angle = self.calculate_vertical_angle([key_points.left_shoulder_x[0], key_points.left_shoulder_y[0]], 
+                                          [key_points.left_wrist_x[0], key_points.left_wrist_y[0]], 
+                                          image_size)
         
-        if angle < 75:
+        if angle < 85:
             error.append("elbow to front")
-        elif angle > 105:
+        elif angle > 95:
             error.append("elbow to after")
-
-        angle = 180
-        if (key_points.nose_x[0] > 0):
-            angle = self.calculate_angle((key_points.right_shoulder_x[0], key_points.right_shoulder_y[0]), 
-                            (key_points.right_hip_x[0], key_points.right_hip_y[0]), 
-                            (key_points.nose_x[0], key_points.nose_y[0]), 
-                            image_size)
-        else:
-            angle = self.calculate_angle((key_points.left_shoulder_x[0], key_points.left_shoulder_y[0]), 
-                            (key_points.left_hip_x[0], key_points.left_hip_y[0]), 
-                            (key_points.nose_x[0], key_points.nose_y[0]), 
-                            image_size)
-        
-        if angle < 170:
-            error.append("neck bowed")
-        elif angle > 190:
-            error.append("neck held high")
 
         if error == []:
             return "Unknown"
