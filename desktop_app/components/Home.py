@@ -170,7 +170,7 @@ class Home(tk.Frame):
                 frame = cv2.resize(frame, self.current_camera_canvas)
             else:
                 if self.is_running_from_device == False:
-                    # switch[self.activitie_selected][1]()
+                    switch[self.activitie_selected][1]()
                     self.is_running_from_device = True
                 frame = switch[self.activitie_selected][0](frame, size_original=self.current_camera_canvas)
             

@@ -8,6 +8,7 @@ import warnings
 import pickle
 import os
 import time as Time
+import pytz
 import threading
 from services.Histories import create_history, save_error
 import datetime
@@ -332,8 +333,6 @@ class PlankModel:
             # Cần khôi phục lại màu gốc của ảnh
             image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
-            cv2.rectangle(image, (0, 0), (750, 60), (245, 117, 16), -1)
-
             # Get landmarks
             try:
                 key_points = self.extract_and_recalculate_landmarks(results.pose_landmarks.landmark)
@@ -363,29 +362,38 @@ class PlankModel:
                     data, samplerate = self.error_types_audio[error_format]
                     self.start_audio_thread(data, samplerate)
 
-                # Display class
-                cv2.putText(image, "CLASS", (95, 12), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
-                cv2.putText(image, current_class, (110, 40), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
-
-                # Display probability
-                cv2.putText(image, "PROB", (15, 12), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
-                cv2.putText(image, str(round(prediction_probability_max, 2)), (10, 40), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
-
-                # set error
-                cv2.putText(image, "ERROR", (180, 12), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
-                if (current_class == "Unknown"):
-                    cv2.putText(image, "Unknown", (180, 40), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
-                    self.last_error = "Unknown"
-                elif (current_class == "W"):
-                    self.last_error = error
-                    cv2.putText(image, error, (180, 40), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
-                    self.save_error(error, image)
+                if current_class == "C":
+                    self.last_error = "None"
                 else:
-                    self.last_error = "OK"
-                    cv2.putText(image, "OK", (180, 40), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
-
+                    self.last_error = error
+                    
+                if current_class == "W":
+                    image_frame_error = self.create_image_error(frame, current_class, prediction_probability_max, error)
+                    self.save_error(error, image_frame_error)
+                
             except Exception as e:
+                self.last_class = "_"
+                self.last_error = "Unknown"
+                self.last_prediction_probability_max = 0
                 print(f"Error: {e}")
+
+    def create_image_error(self, image, current_class, prediction_probability_max, errors):
+        cv2.rectangle(image, (0, 0), (750, 60), (245, 117, 16), -1)
+        # Display class
+        cv2.putText(image, "CLASS", (95, 12), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(image, current_class, (110, 40), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+
+        # Display probability
+        cv2.putText(image, "PROB", (15, 12), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(image, str(round(prediction_probability_max, 2)), (10, 40), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+
+        # Set error
+        cv2.putText(image, "ERROR", (180, 12), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(image, errors, (180, 40), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+
+        return image
+
+
     def save_error(self, error, image_frame):
         if self.history_id is not None:
             save_error({
@@ -395,6 +403,6 @@ class PlankModel:
     def init_history(self):
         self.history_id = create_history({
             "ExcerciseName": "Plank",
-            "Datetime": datetime.datetime.now(),
+            "Datetime": datetime.datetime.now(tz=pytz.timezone("Asia/Ho_Chi_Minh")),
             "UserID": "54U9rc8mD9Nbm4dpRAUNNm7ZYGw2"
         })
