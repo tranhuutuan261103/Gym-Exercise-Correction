@@ -2,6 +2,9 @@ import tkinter as tk
 from tkinter import Toplevel, PhotoImage, filedialog
 from PIL import Image, ImageTk
 import cv2
+import threading
+import soundfile as sf
+import sounddevice as sd
 from services.Introductions import get_introductions
 from services.Histories import send_push_notification
 from models.plank.PlankModel import PlankModel
@@ -90,6 +93,11 @@ class Home(tk.Frame):
         self.test_camera_btn = tk.Button(self.actions_frame, image=self.loadimage_test_camera_btn, bd=0, border=0, command=self.start_test_camera)
         self.test_camera_btn.image = self.loadimage_test_camera_btn  # Prevent image from being garbage collected
         self.test_camera_btn.pack(pady=10, padx=12, side="right")
+
+        self.loadimage_test_audio_btn = PhotoImage(file=f'./desktop_app/assets/home/actions/TestAudioBtn.png')
+        test_audio_btn = tk.Button(self.actions_frame, image=self.loadimage_test_audio_btn, bd=0, border=0, command=self.start_test_audio)
+        test_audio_btn.image = self.loadimage_test_audio_btn  # Prevent image from being garbage collected
+        test_audio_btn.pack(pady=10, padx=12, side="right")
 
         # End of UI components
 
@@ -255,6 +263,14 @@ class Home(tk.Frame):
             self.video_capture_from_device = None
             
         self.after(10, self.play_video)
+
+    def start_test_audio(self, file_path="./desktop_app/assets/home/audio/welcome.wav"):
+        data, samplerate = sf.read(file_path)
+        threading.Thread(target=self.play_audio, args=(data, samplerate,), daemon=True).start()
+
+    def play_audio(self, data, samplerate):
+        sd.play(data, samplerate)
+        sd.wait()
 
 # End of Home.py
 
