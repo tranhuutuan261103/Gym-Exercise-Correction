@@ -6,6 +6,7 @@ import warnings
 import pickle
 import os
 import time as Time
+import pytz
 import threading
 from services.Histories import create_history, save_error
 import datetime
@@ -50,6 +51,8 @@ class BicepCurlModel:
 
         self.error_types_audio = self.load_audio(f"{current_dir}/audios")
         self.is_playing = False
+
+        self.history_id = None
 
     def load_model(self, file_name):
         with open(file_name, "rb") as file:
@@ -313,7 +316,7 @@ class BicepCurlModel:
                 else:
                     error_types = "_".join([errors_list[0], errors_list[1]]).replace(" ", "_").replace("_not_straight", "", 1)
 
-                if errors != "OK" and error_types in self.error_types_audio and not self.is_playing:
+                if errors != "None" and error_types in self.error_types_audio and not self.is_playing:
                     self.start_audio_thread(*self.error_types_audio[error_types])
 
                 if self.last_state == "Up" and predicted_stage == "Middle":
@@ -325,6 +328,13 @@ class BicepCurlModel:
                 self.last_state = predicted_stage
                 self.last_predicted_stage = predicted_stage
                 self.last_prediction_probability_max = 1
+
+                try:
+                    if errors != "None":
+                        image_frame_error = self.create_image_error(frame, predicted_stage, 1, errors_list, self.counter)
+                        self.save_error(errors, image_frame_error)
+                except Exception as e:
+                    print(e)
             except Exception as e:
                 print(e)
                 self.last_errors = "Unknown"
@@ -332,6 +342,26 @@ class BicepCurlModel:
                 self.last_predicted_stage = "Unknown"
                 self.last_prediction_probability_max = 0
 
+    def create_image_error(self, image, current_class, prediction_probability_max, errors, rep_counter):
+        cv2.rectangle(image, (0, 0), (image.shape[1], 60), (245, 117, 16), -1)  
+
+        cv2.putText(image, "STAGE, REP", (30, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+        if current_class == "Up":
+            cv2.putText(image, f"{current_class}, {rep_counter}", (40, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.8, 
+                    (255, 255, 255), 2, cv2.LINE_AA)
+        else:
+            cv2.putText(image, f"{current_class}, {rep_counter}", (20, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.8, 
+                    (255, 255, 255), 2, cv2.LINE_AA)
+
+        cv2.putText(image, "ERRORS", (220, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+
+        # Hiển thị các lỗi theo hàng dọc
+        y_position = 45
+        for error in errors:
+            cv2.putText(image, error, (220, y_position), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 150, 255), 2, cv2.LINE_AA)
+            y_position += 30
+
+        return image
         
     def save_error(self, error, image_frame):
         if self.history_id is not None:
@@ -342,6 +372,6 @@ class BicepCurlModel:
     def init_history(self):
         self.history_id = create_history({
             "ExcerciseName": "Bicep Curl",
-            "Datetime": datetime.datetime.now(),
+            "Datetime": datetime.datetime.now(tz=pytz.timezone("Asia/Ho_Chi_Minh")),
             "UserID": "54U9rc8mD9Nbm4dpRAUNNm7ZYGw2"
         })
