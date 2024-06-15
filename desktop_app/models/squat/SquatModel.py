@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import time as Time
 import datetime
+import pytz
 import threading
 from services.Histories import create_history, save_error
 import mediapipe as mp
@@ -154,7 +155,7 @@ class SquatModel:
         left, right, leftBackAngle, rightBackAngle, leftkneeAngleLineAngle, rightkneeAngleLineAngle = hands[0:]
 
         # Error 1: Bend forward
-        if leftBackAngle >= 20 and rightBackAngle >= 20:
+        if leftBackAngle >= 55 and rightBackAngle >= 55:
             self.last_error_bend_forward = True
             errors.append("bend_forward")
             if self.error_bend_forward_start_time is None:
@@ -178,7 +179,7 @@ class SquatModel:
             self.last_label_error_knees_straight = None
 
         # Error 2: Deep squat
-        if left >= 95 and right >= 95:
+        if left >= 80 and right >= 80:
             self.last_error_deep_squat = True
             errors.append("deep_squat")
             if self.error_deep_squat_start_time is None:
@@ -194,6 +195,9 @@ class SquatModel:
                 self.error_knees_straight_start_time = current_time
         elif self.error_knees_straight_start_time is not None:
             self.error_knees_straight_start_time = None
+
+        if len(errors) == 0:
+            return "None"
 
         return ", ".join(errors)
     
@@ -235,9 +239,10 @@ class SquatModel:
 
     def task(self, frame, size_original = (640, 480)):
         with self.mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
-            errors = []
+            errors = "None"
 
-            results = pose.process(frame)
+            image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            results = pose.process(image)
 
             if not results.pose_landmarks:
                 self.human_found = False
@@ -278,7 +283,33 @@ class SquatModel:
             if error_type in self.error_types_audio and not self.is_playing:
                 data, samplerate = self.error_types_audio[error_type]
                 self.start_audio_thread(data, samplerate)
-        
+
+            try:
+                if errors != "None":
+                    image_frame_error = self.create_image_error(frame, predicted_class, 1, errors, self.counter)
+                    self.save_error(errors, image_frame_error)
+            except Exception as e:
+                print("Error when saving image: ", e)
+
+    def create_image_error(self, image, current_class, prediction_probability_max, errors, rep_counter):
+        # putting scores on the screen
+        cv2.rectangle(image, (0, 0), (620, 120), (255, 0, 0), -1)
+        cv2.putText(image, str(int(rep_counter)), (1, 70), cv2.FONT_HERSHEY_SCRIPT_SIMPLEX, 1.6, (0, 0, 255), 6)
+        if current_class is not None:
+            cv2.putText(image, f"State: {current_class}", (100, 70), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+        # Draw errors
+        if "bend_forward" in errors:
+            cv2.rectangle(image, (380, 60), (630, 100), (64, 64, 204), -1)
+            cv2.putText(image, "Bend Forward", (390, 80), cv2.FONT_HERSHEY_TRIPLEX , 0.7, (255, 255, 230), 3)
+        if "knees_straight" in errors:
+            cv2.rectangle(image, (380, 160), (630, 200), (64, 64, 204), -1)
+            cv2.putText(image, "Knee falling over toes", (390, 180), cv2.FONT_HERSHEY_TRIPLEX, 0.6, (255, 255, 230), 3)
+        if "deep_squat" in errors:
+            cv2.rectangle(image, (380, 210), (630, 250), (204, 122, 0), -1)
+            cv2.putText(image, "Deep squats", (390, 230), cv2.FONT_HERSHEY_TRIPLEX, 0.7, (255, 255, 230), 3)
+
+        return image
 
     def save_error(self, error, image_frame):
         if self.history_id is not None:
@@ -289,6 +320,6 @@ class SquatModel:
     def init_history(self):
         self.history_id = create_history({
             "ExcerciseName": "Squat",
-            "Datetime": datetime.datetime.now(),
+            "Datetime": datetime.datetime.now(tz=pytz.timezone("Asia/Ho_Chi_Minh")),
             "UserID": "54U9rc8mD9Nbm4dpRAUNNm7ZYGw2"
         })
