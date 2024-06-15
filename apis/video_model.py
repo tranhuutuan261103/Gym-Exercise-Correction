@@ -1,8 +1,8 @@
 import os, cv2, time, pytz
 from flask import jsonify
 from werkzeug.utils import secure_filename
-from ML_models.plank.PlankModel import PlankModel
 from datetime import datetime
+
 from utils import (
     combine_frames_to_video,
     create_folder_if_not_exists,
@@ -13,6 +13,9 @@ from firebase_utils import (
     upload_file_to_fire_storage,
 )
 
+from ML_models.plank.PlankModel import PlankModel
+from ML_models.lunge.LungeModel import LungeModel
+
 current_dir = os.path.dirname(os.path.realpath(__file__))
 UPLOADED_VIDEOS = "uploaded_videos"
 db = initialize_firestore()
@@ -21,6 +24,7 @@ db = initialize_firestore()
 class VideoModel:
     available_models = {
         "plank": PlankModel(),
+        "lunge": LungeModel(),
     }
 
     def init_empty_handle_video_record(self, user_id, exercise_type):
@@ -66,9 +70,9 @@ class VideoModel:
         """
         Xử lý video đã được upload lên server khi đã thu thập đủ các chunks
         """
-        response_info = self.available_models.get(
-            exercise_type
-        ).plank_detection_offline(uploaded_video_url)
+        response_info = self.available_models.get(exercise_type).detection_offline(
+            uploaded_video_url
+        )
 
         handled_video_url = combine_frames_to_video(user_id, response_info)
 
