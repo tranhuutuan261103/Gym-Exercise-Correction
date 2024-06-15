@@ -275,8 +275,8 @@ class BicepCurlModel:
             cv2.putText(image, error, (220, y_position), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 150, 255), 2, cv2.LINE_AA)
             y_position += 30
 
-        cv2.putText(image, "ANGLES", (380, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
-        cv2.putText(image, str(self.last_angles), (380, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 150, 255), 2, cv2.LINE_AA)
+        # cv2.putText(image, "ANGLES", (380, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+        # cv2.putText(image, str(self.last_angles), (380, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 150, 255), 2, cv2.LINE_AA)
         return image
     
     def task(self, frame, size_original, prediction_probability_threshold):

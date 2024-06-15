@@ -24,11 +24,11 @@ class Home(tk.Frame):
         self.is_running = False  # Flag to control webcam updating
         self.is_running_from_device = False  # Flag to control video updating
 
-        self.plank_model = PlankModel()
-        self.squat_model = SquatModel()
+        self.plank_model = PlankModel(0.4)
+        self.squat_model = SquatModel(0.4)
         self.lunge_model = LungeModel(0.4)
-        self.bicep_curl_model = BicepCurlModel(0.1)
-        self.push_up_model = PushUpModel()
+        self.bicep_curl_model = BicepCurlModel(0.4)
+        self.push_up_model = PushUpModel(0.4)
 
         # Initialize UI components here...
         # Title label

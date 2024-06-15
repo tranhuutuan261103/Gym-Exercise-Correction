@@ -47,7 +47,6 @@ class LungeModel:
 
         self.last_class = "Unknown"
         self.last_errors = "Unknown"
-        self.last_state = None
         self.last_predicted_stage = "Unknown"
         self.counter = 0
         self.last_prediction_probability_max = 0
@@ -245,6 +244,12 @@ class LungeModel:
         else:
             return ", ".join(errors)
     
+    def play_audio(self, data, samplerate):
+        self.is_playing = True
+        sd.play(data, samplerate)
+        sd.wait()
+        self.is_playing = False
+    
     def start_audio_thread(self, data, samplerate):
         threading.Thread(target=self.play_audio, args=(data, samplerate,), daemon=True).start()
 
@@ -269,7 +274,7 @@ class LungeModel:
                         (255, 255, 255), 2, cv2.LINE_AA)
 
         cv2.putText(image, "ERRORS", (260, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
-        if self.last_state == "Down":
+        if self.last_predicted_stage == "Down":
             cv2.putText(image, f"{self.last_errors}", (260, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2, cv2.LINE_AA)
         return image
     
@@ -297,10 +302,13 @@ class LungeModel:
 
                 predicted_stage = self.RF_model.predict(X)[0]
                 predicted_stage = self.get_class(predicted_stage)
-                self.last_predicted_stage = predicted_stage
                 prediction_probability_max = self.RF_model.predict_proba(X)[0].max()
 
-                if current_stage == "Down" and not self.is_playing:
+                if prediction_probability_max >= prediction_probability_threshold:
+                    if predicted_stage == "Down" and self.last_predicted_stage == "Middle":
+                        self.counter += 1
+
+                if predicted_stage == "Down":
                     errors = self.define_errors(X_original, self.get_image_size(image))
                     errors_list = errors.split(", ")
                     if len(errors_list) == 1:
@@ -314,17 +322,13 @@ class LungeModel:
                         print(error_types)
                         self.start_audio_thread(*self.error_types_audio[error_types])
 
-                if prediction_probability_max >= prediction_probability_threshold:
-                    if predicted_stage == "Down" and current_stage == "Middle":
-                        self.counter += 1
-                    current_stage = predicted_stage
-                    self.last_state = current_stage
                     self.last_errors = errors
-                    self.last_prediction_probability_max = prediction_probability_max
+
+                self.last_predicted_stage = predicted_stage
+                self.last_prediction_probability_max = prediction_probability_max
 
             except Exception as e:
-                self.last_state = "Unknown"
-                self.last_errors = "Unknown"
+                self.last_errors = "Unknown 2"
                 self.last_predicted_stage = "Unknown"
                 self.last_prediction_probability_max = 0
                 print(f"Error: {e}")
