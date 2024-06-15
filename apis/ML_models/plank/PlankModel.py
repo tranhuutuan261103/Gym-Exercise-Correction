@@ -248,7 +248,7 @@ class PlankModel:
             cv2.LINE_AA,
         )
 
-    def plank_detection_offline(self, video_path, prediction_probability_threshold=0.5):
+    def detection_offline(self, video_path, prediction_probability_threshold=0.5):
         cap = cv2.VideoCapture(video_path if video_path else 0)
         fps = cap.get(cv2.CAP_PROP_FPS)
         print("FPS: ", fps)
