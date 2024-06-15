@@ -154,7 +154,7 @@ class SquatModel:
         left, right, leftBackAngle, rightBackAngle, leftkneeAngleLineAngle, rightkneeAngleLineAngle = hands[0:]
 
         # Error 1: Bend forward
-        if leftBackAngle >= 45 and rightBackAngle >= 45:
+        if leftBackAngle >= 20 and rightBackAngle >= 20:
             self.last_error_bend_forward = True
             errors.append("bend_forward")
             if self.error_bend_forward_start_time is None:
@@ -177,11 +177,6 @@ class SquatModel:
         else:
             self.last_label_error_knees_straight = None
 
-        if self.last_error_lift_hips and self.error_lift_hips_start_time and (current_time - self.error_lift_hips_start_time) < 1000:
-            self.last_label_error_lift_hips = "lift_hips"
-        else:
-            self.last_label_error_lift_hips = None
-
         # Error 2: Deep squat
         if left >= 95 and right >= 95:
             self.last_error_deep_squat = True
@@ -199,15 +194,6 @@ class SquatModel:
                 self.error_knees_straight_start_time = current_time
         elif self.error_knees_straight_start_time is not None:
             self.error_knees_straight_start_time = None
-
-        # Error 4: Lift hips
-        if leftBackAngle >= 30 and rightBackAngle >= 30 and left <= 80 and right <= 80:
-            self.last_error_lift_hips = True
-            errors.append("lift_hips")
-            if self.error_lift_hips_start_time is None:
-                self.error_lift_hips_start_time = current_time
-        elif self.error_lift_hips_start_time is not None:
-            self.error_lift_hips_start_time = None
 
         return ", ".join(errors)
     
@@ -238,9 +224,6 @@ class SquatModel:
         if self.last_label_error_bend_forward is not None:
             cv2.rectangle(image, (380, 60), (630, 100), (64, 64, 204), -1)
             cv2.putText(image, "Bend Forward", (390, 80), cv2.FONT_HERSHEY_TRIPLEX , 0.7, (255, 255, 230), 3)
-        if self.last_label_error_lift_hips is not None:
-            cv2.rectangle(image, (380, 110), (630, 150), (64, 64, 204), -1)
-            cv2.putText(image, "Lower one's hips", (390, 130), cv2.FONT_HERSHEY_TRIPLEX, 0.7, (255, 255, 230), 3)
         if self.last_label_error_knees_straight is not None:
             cv2.rectangle(image, (380, 160), (630, 200), (64, 64, 204), -1)
             cv2.putText(image, "Knee falling over toes", (390, 180), cv2.FONT_HERSHEY_TRIPLEX, 0.6, (255, 255, 230), 3)
