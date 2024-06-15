@@ -488,7 +488,7 @@ class LungeModel:
 
                     # Lưu frame vào để phục vụ cho việc xuất video
                     result_frames.append(image)
-                    current_time = frame_count / fps
+                    current_time = round(frame_count / fps, 1)
                     if errors != "None" and (
                         errors != previous_error["name"]
                         or current_time - previous_error["time"] >= 1.5
