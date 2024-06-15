@@ -302,7 +302,7 @@ class PushUpModel:
                 self.last_prediction_probability_max = prediction_probability_max
 
             except Exception as e:
-                save_error(e)
+                print(e)
                 current_class = "Unknown"
                 error = "Unknown"
                 prediction_probability_max = 0
