@@ -3,6 +3,7 @@ import cv2
 from PIL import Image, ImageTk
 from components.Home import Home
 from components.History import History
+from components.History2 import History2
 
 button_dict = {}
 
@@ -36,7 +37,7 @@ def switch_tag(tag):
         home = Home(main_content, app, camera)
         home.pack()
     elif tag == "History":
-        history = History(main_content, app)
+        history = History2(main_content, app)
         history.pack(fill="both", expand=True)
     elif tag == "Profile":
         label = tk.Label(main_content, text="Profile Page", bg="white")
