@@ -8,6 +8,7 @@ import warnings
 import pickle
 import os
 import time as Time
+import pytz
 import threading
 from services.Histories import create_history, save_error
 import datetime
@@ -286,21 +287,46 @@ class PushUpModel:
                     current_class = "C"
                     error = "None"
                     
+                self.last_class = current_class
+
                 error_type = error.replace(", ", "_").replace(" ", "_").lower()
                 print(f"Error type: {error_type}")
                 if current_class == "W" and error_type in self.error_types_audio and not self.is_playing:
                     data, samplerate = self.error_types_audio[error_type]
                     self.start_audio_thread(data, samplerate)
 
-                self.last_class = current_class
-                self.last_errors = error
+                if current_class == "C":
+                    self.last_errors = "None"
+                else:
+                    self.last_errors = error
                 self.last_prediction_probability_max = prediction_probability_max
+
+                if current_class == "W":
+                    image_frame_error = self.create_image_error(frame, current_class, prediction_probability_max, error)
+                    self.save_error(error, image_frame_error)
 
             except Exception as e:
                 print(e)
                 current_class = "Unknown"
                 error = "Unknown"
                 prediction_probability_max = 0
+
+    def create_image_error(self, image, current_class, prediction_probability_max, errors):
+        cv2.rectangle(image, (0, 0), (750, 60), (245, 117, 16), -1)
+
+        # Display error
+        cv2.putText(image, "ERROR", (180, 12), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(image, errors, (180, 40), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+
+        # Display class
+        cv2.putText(image, "CLASS", (95, 12), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(image, current_class, (110, 40), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+
+        # Display probability
+        cv2.putText(image, "PROB", (15, 12), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(image, str(round(prediction_probability_max, 2)), (10, 40), cv2.FONT_HERSHEY_COMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+
+        return image
 
     def save_error(self, error, image_frame):
         if self.history_id is not None:
@@ -311,6 +337,6 @@ class PushUpModel:
     def init_history(self):
         self.history_id = create_history({
             "ExcerciseName": "Push Up",
-            "Datetime": datetime.datetime.now(),
+            "Datetime": datetime.datetime.now(pytz.timezone('Asia/Ho_Chi_Minh')),
             "UserID": "54U9rc8mD9Nbm4dpRAUNNm7ZYGw2"
         })
