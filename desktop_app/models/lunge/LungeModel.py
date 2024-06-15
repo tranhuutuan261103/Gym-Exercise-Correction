@@ -8,6 +8,7 @@ import warnings
 import pickle
 import os
 import time as Time
+import pytz
 import threading
 from services.Histories import create_history, save_error
 import datetime
@@ -308,6 +309,9 @@ class LungeModel:
                     if predicted_stage == "Down" and self.last_predicted_stage == "Middle":
                         self.counter += 1
 
+                errors_list = []
+                errors = "None"
+
                 if predicted_stage == "Down":
                     errors = self.define_errors(X_original, self.get_image_size(image))
                     errors_list = errors.split(", ")
@@ -327,11 +331,30 @@ class LungeModel:
                 self.last_predicted_stage = predicted_stage
                 self.last_prediction_probability_max = prediction_probability_max
 
+                if predicted_stage == "Down" and errors != "None" and errors != "OK":
+                    image_frame_error = self.create_image_error(frame, predicted_stage, prediction_probability_max, errors, self.counter)
+                    self.save_error(errors, image_frame_error)
+
             except Exception as e:
                 self.last_errors = "Unknown 2"
                 self.last_predicted_stage = "Unknown"
                 self.last_prediction_probability_max = 0
                 print(f"Error: {e}")
+
+    def create_image_error(self, image, current_class, prediction_probability_max, errors, rep_counter):
+        cv2.rectangle(image, (0, 0), (image.shape[1], 60), (245, 117, 16), -1)
+
+        cv2.putText(image, "REP", (15, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(image, str(rep_counter), (20, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2, cv2.LINE_AA)
+
+        cv2.putText(image, "STAGE", (100, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(image, f"{current_class}, {round(prediction_probability_max, 2)}", (60, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.8, 
+                        (255, 255, 255), 2, cv2.LINE_AA)
+
+        cv2.putText(image, "ERRORS", (260, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(image, f"{errors}", (260, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2, cv2.LINE_AA)
+
+        return image
         
     def save_error(self, error, image_frame):
         if self.history_id is not None:
@@ -342,6 +365,6 @@ class LungeModel:
     def init_history(self):
         self.history_id = create_history({
             "ExcerciseName": "Lunge",
-            "Datetime": datetime.datetime.now(),
+            "Datetime": datetime.datetime.now(tz=pytz.timezone("Asia/Ho_Chi_Minh")),
             "UserID": "54U9rc8mD9Nbm4dpRAUNNm7ZYGw2"
         })
