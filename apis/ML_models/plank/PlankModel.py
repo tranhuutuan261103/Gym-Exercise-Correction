@@ -284,7 +284,7 @@ class PlankModel:
                 print("Running, process in seconds: ", frame_count / fps)
 
                 # resize frame để tăng tốc độ xử lý
-                image = self.rescale_frame(image, percent=30)
+                image = self.rescale_frame(image, percent=50)
                 image_width, image_height = self.get_image_size(image)
 
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
