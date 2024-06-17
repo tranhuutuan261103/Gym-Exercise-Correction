@@ -159,6 +159,6 @@ cython_debug/
 #.idea/
 
 # Result folder
-Keypoints/result/images
-Keypoints/data*
-Keypoints/*.mp4
+labeling_tool/result/images
+labeling_tool/data*
+labeling_tool/*.mp4

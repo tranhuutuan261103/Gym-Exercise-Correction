@@ -1,9 +1,0 @@
-%pip install opencv-python
-%pip install numpy
-%pip install mediapipe
-%pip install pandas
-%pip install PyQt5
-%pip install python-dotenv
-%pip install flask
-%pip install Flask-CORS
-%pip install soundfile
